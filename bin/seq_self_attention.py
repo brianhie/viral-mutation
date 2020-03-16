@@ -1,8 +1,8 @@
-from .backend import keras
-from .backend import backend as K
+import keras
+from keras import backend as K
 
 
-class SeqSelfAttention(keras.layers.Layer):
+class SelfAttention(keras.layers.Layer):
 
     ATTENTION_TYPE_ADD = 'additive'
     ATTENTION_TYPE_MUL = 'multiplicative'

@@ -74,7 +74,7 @@ class BiLSTMLanguageModel(object):
             X_cat, lengths, self.seq_len_, self.vocab_size_, self.verbose_
         )
 
-        opt = Adam(learning_rate=0.001, beta_1=0.9, beta_2=0.999,
+        opt = Adam(learning_rate=0.01, beta_1=0.9, beta_2=0.999,
                    amsgrad=False)
         self.model_.compile(
             loss='categorical_crossentropy', optimizer=opt,
@@ -82,7 +82,7 @@ class BiLSTMLanguageModel(object):
         )
 
         checkpoint = ModelCheckpoint(
-            'target/checkpoints/lstm/bilstm_512-{epoch:02d}.hdf5',
+            'target/checkpoints/lstm/bilstm_allcond_256-{epoch:02d}.hdf5',
             save_best_only=False, save_weights_only=False,
             mode='auto', period=1
         )
