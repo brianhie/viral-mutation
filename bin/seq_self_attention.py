@@ -1,7 +1,6 @@
 import keras
 from keras import backend as K
 
-
 class SelfAttention(keras.layers.Layer):
 
     ATTENTION_TYPE_ADD = 'additive'
@@ -46,7 +45,7 @@ class SelfAttention(keras.layers.Layer):
         :param attention_regularizer_weight: The weights of attention regularizer.
         :param kwargs: Parameters for parent class.
         """
-        super(SeqSelfAttention, self).__init__(**kwargs)
+        super(SelfAttention, self).__init__(**kwargs)
         self.supports_masking = True
         self.units = units
         self.attention_width = attention_width

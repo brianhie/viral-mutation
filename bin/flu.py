@@ -28,6 +28,8 @@ def parse_args():
                         help='Train model')
     parser.add_argument('--embed', action='store_true',
                         help='Analyze embeddings')
+    parser.add_argument('--dim', type=int, default=256,
+                        help='Embedding dimension')
     args = parser.parse_args()
     return args
 
@@ -57,8 +59,8 @@ def process(fnames, meta_fnames):
 def err_model(name):
     raise ValueError('Model {} not supported'.format(name))
 
-def get_model(name, seq_len, vocab_size,):
-    if name == 'hmm':
+def get_model(args, seq_len, vocab_size,):
+    if args.model_name == 'hmm':
         from hmmlearn.hmm import MultinomialHMM
         model = MultinomialHMM(
             n_components=16,
@@ -72,32 +74,45 @@ def get_model(name, seq_len, vocab_size,):
             params='ste',
             init_params='ste'
         )
-    elif name == 'lstm':
+    elif args.model_name == 'lstm':
         from lstm import LSTMLanguageModel
         model = LSTMLanguageModel(
             seq_len,
             vocab_size,
             embedding_dim=20,
-            hidden_dim=256,
+            hidden_dim=args.dim,
             n_hidden=2,
             n_epochs=20,
             batch_size=1000,
             verbose=2,
         )
-    elif name == 'bilstm':
+    elif args.model_name == 'bilstm':
         from bilstm import BiLSTMLanguageModel
         model = BiLSTMLanguageModel(
             seq_len,
             vocab_size,
             embedding_dim=20,
-            hidden_dim=256,
+            hidden_dim=args.dim,
+            n_hidden=2,
+            n_epochs=20,
+            batch_size=1000,
+            verbose=2,
+        )
+    elif args.model_name == 'bilstm-a':
+        from bilstm import BiLSTMLanguageModel
+        model = BiLSTMLanguageModel(
+            seq_len,
+            vocab_size,
+            attention=True,
+            embedding_dim=20,
+            hidden_dim=args.dim,
             n_hidden=2,
             n_epochs=20,
             batch_size=1000,
             verbose=2,
         )
     else:
-        err_model(name)
+        err_model(args.model_name)
 
     return model
 
@@ -170,7 +185,7 @@ def report_performance(model_name, model, train_seqs, test_seqs):
     tprint('Model {}, test perplexity: {}'
            .format(model_name, perplexity(logprob, len(lengths_test))))
 
-def setup(model_name):
+def setup(args):
     fnames = [ 'data/influenza/ird_influenzaA_HA_allspecies.fa' ]
     meta_fnames = [ 'data/influenza/ird_influenzaA_HA_allspecies_meta.tsv' ]
 
@@ -181,21 +196,107 @@ def setup(model_name):
     seq_len = max([ len(seq) for seq in seqs ]) + 2
     vocab_size = len(AAs) + 2
 
-    model = get_model(model_name, seq_len, vocab_size)
+    model = get_model(args, seq_len, vocab_size)
 
     return model, seqs
 
 def train_test(args, model, seqs):
     train_seqs, test_seqs, val_seqs = split_seqs(seqs)
     if args.train:
-        model = fit_model(model_name, model, train_seqs)
+        model = fit_model(args.model_name, model, train_seqs)
     if args.test:
-        report_performance(model_name, model, train_seqs, test_seqs)
+        report_performance(args.model_name, model, train_seqs, test_seqs)
+
+def analyze_embedding(args, model, seqs):
+    from keras.models import Model
+    layer_name = 'lstm_{}'.format(model.n_hidden_)
+    hidden = Model(
+        inputs=model.model_.input,
+        outputs=model.model_.get_layer(layer_name).output
+    )
+
+    X_cat, lengths = featurize_seqs(seqs)
+
+    if args.model_name == 'lstm':
+        from lstm import _iterate_lengths, _split_and_pad
+    elif args.model_name == 'bilstm':
+        from bilstm import _iterate_lengths, _split_and_pad
+    else:
+        raise ValueError('No embedding support for model {}'
+                         .format(args.model_name))
+
+    embed_fname = ('target/embedding/{}_{}.npy'
+                   .format(args.model_name, args.dim))
+    if os.path.exists(embed_fname):
+        embed_cat = np.load(embed_fname)
+    else:
+        X = _split_and_pad(
+            X_cat, lengths,
+            model.seq_len_, model.vocab_size_, model.verbose_
+        )[0]
+        tprint('Embedding...')
+        embed_cat = hidden.predict(X, batch_size=5000,
+                                   verbose=model.verbose_ > 0)
+        np.save(embed_fname, embed_cat)
+
+    sorted_seqs = sorted(seqs)
+    for seq, (start, end) in zip(
+            sorted_seqs, _iterate_lengths(lengths, model.seq_len_)):
+        embedding = embed_cat[start:end]
+        for meta in seqs[seq]:
+            meta['embedding'] = embedding
+    tprint('Done embedding.')
+
+    from anndata import AnnData
+    import scanpy as sc
+
+    X, obs = [], {}
+    for seq in seqs:
+        for meta in seqs[seq]:
+            X.append(meta['embedding'].mean(0))
+            for key in meta:
+                if key == 'embedding':
+                    continue
+                if key not in obs:
+                    obs[key] = []
+                obs[key].append(meta[key])
+            break # DEBUG
+    X = np.array(X)
+    adata = AnnData(X)
+    for key in obs:
+        if key == 'Subtype':
+            adata.obs[key] = [
+                val.strip('()').split('N')[0] for val in obs[key]
+            ]
+        elif key == 'Collection Date':
+            adata.obs[key] = [
+                int(val.split('/')[-1]) if val != '-N/A-' else 2019
+                for val in obs[key]
+            ]
+        elif key == 'Host Species':
+            adata.obs[key] = [
+                val.split(':')[1].lower() for val in obs[key]
+            ]
+        else:
+            adata.obs[key] = obs[key]
+
+    adata = adata[adata.obs['Host Species'] == 'human']
+
+    sc.pp.neighbors(adata, n_neighbors=100, use_rep='X')
+    sc.tl.umap(adata)
+    sc.pl.umap(adata, color='Host Species', save='_species.png')
+    sc.pl.umap(adata, color='Subtype', save='_subtype.png')
+    sc.pl.umap(adata, color='Collection Date', save='_date.png')
+    sc.tl.draw_graph(adata)
+    sc.pl.draw_graph(adata, color='Host Species', save='_species.png')
+    sc.pl.draw_graph(adata, color='Subtype', save='_subtype.png')
+    sc.pl.draw_graph(adata, color='Collection Date', save='_date.png',
+                     edges=True)
 
 if __name__ == '__main__':
     args = parse_args()
 
-    model, seqs = setup(args.model_name)
+    model, seqs = setup(args)
 
     if args.checkpoint is not None:
         model.model_.load_weights(args.checkpoint)
@@ -209,3 +310,8 @@ if __name__ == '__main__':
         if args.checkpoint is None and not args.train:
             raise ValueError('Model must be trained or loaded '
                              'from checkpoint.')
+        no_embed = { 'hmm' }
+        if args.model_name in no_embed:
+            raise ValueError('Embeddings not available for models: {}'
+                             .format(', '.join(no_embed)))
+        analyze_embedding(args, model, seqs)

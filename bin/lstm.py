@@ -93,7 +93,8 @@ class LSTMLanguageModel(object):
         )
 
         checkpoint = ModelCheckpoint(
-            'target/checkpoints/lstm/lstm-{epoch:02d}.hdf5',
+            'target/checkpoints/lstm/lstm_{}'
+            .format(self.hidden_dim_) + '-{epoch:02d}.hdf5',
             save_best_only=False, save_weights_only=False,
             mode='auto', period=1
         )
