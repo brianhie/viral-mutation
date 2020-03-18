@@ -41,7 +41,18 @@ def load_meta(meta_fnames):
             for line in f:
                 fields = line.rstrip().split('\t')
                 accession = fields[1]
-                metas[accession] = { key: value for key, value in zip(header, fields) }
+                meta = {}
+                for key, value in zip(header, fields):
+                    if key == 'Subtype':
+                        meta[key] = value.strip('()').split('N')[0].split('/')[-1]
+                    elif key == 'Collection Date':
+                        meta[key] = int(value.split('/')[-1]) \
+                                    if value != '-N/A-' else 2019
+                    elif key == 'Host Species':
+                        meta[key] = value.split(':')[1].split('/')[-1].lower()
+                    else:
+                        meta[key] = value
+                metas[accession] = meta
     return metas
 
 def process(fnames, meta_fnames):
@@ -167,6 +178,8 @@ def fit_model(name, model, seqs):
         model.fit(X, lengths)
     elif name == 'bilstm':
         model.fit(X, lengths)
+    elif name == 'bilstm-a':
+        model.fit(X, lengths)
     else:
         err_model(name)
 
@@ -207,23 +220,24 @@ def train_test(args, model, seqs):
     if args.test:
         report_performance(args.model_name, model, train_seqs, test_seqs)
 
-def analyze_embedding(args, model, seqs):
+def embed_seqs(args, model, seqs):
+    X_cat, lengths = featurize_seqs(seqs)
+
     from keras.models import Model
-    layer_name = 'lstm_{}'.format(model.n_hidden_)
+    if args.model_name == 'lstm':
+        from lstm import _iterate_lengths, _split_and_pad
+        layer_name = 'lstm_{}'.format(model.n_hidden_)
+    elif args.model_name == 'bilstm':
+        from bilstm import _iterate_lengths, _split_and_pad
+        layer_name = 'concatenate_1'
+    else:
+        raise ValueError('No embedding support for model {}'
+                         .format(args.model_name))
+
     hidden = Model(
         inputs=model.model_.input,
         outputs=model.model_.get_layer(layer_name).output
     )
-
-    X_cat, lengths = featurize_seqs(seqs)
-
-    if args.model_name == 'lstm':
-        from lstm import _iterate_lengths, _split_and_pad
-    elif args.model_name == 'bilstm':
-        from bilstm import _iterate_lengths, _split_and_pad
-    else:
-        raise ValueError('No embedding support for model {}'
-                         .format(args.model_name))
 
     embed_fname = ('target/embedding/{}_{}.npy'
                    .format(args.model_name, args.dim))
@@ -238,6 +252,7 @@ def analyze_embedding(args, model, seqs):
         embed_cat = hidden.predict(X, batch_size=5000,
                                    verbose=model.verbose_ > 0)
         np.save(embed_fname, embed_cat)
+        tprint('Done embedding.')
 
     sorted_seqs = sorted(seqs)
     for seq, (start, end) in zip(
@@ -245,12 +260,73 @@ def analyze_embedding(args, model, seqs):
         embedding = embed_cat[start:end]
         for meta in seqs[seq]:
             meta['embedding'] = embedding
-    tprint('Done embedding.')
 
-    from anndata import AnnData
-    import scanpy as sc
+    return seqs
+
+def interpret_clusters(adata):
+    clusters = sorted(set(adata.obs['louvain']))
+    for cluster in clusters:
+        tprint('Cluster {}'.format(cluster))
+        adata_cluster = adata[adata.obs['louvain'] == cluster]
+        for var in [ 'Collection Date', 'Country', 'Subtype',
+                     'Flu Season' ]:
+            tprint('\t{}:'.format(var))
+            counts = Counter(adata_cluster.obs[var])
+            for val, count in counts.most_common():
+                tprint('\t\t{}: {}'.format(val, count))
+        tprint('')
+
+def plot_composition(adata, var):
+    years = sorted(set(adata.obs['Collection Date']))
+    vals = sorted(set(adata.obs[var]))
+
+    comps = [ [] for val in vals ]
+    norms = [ [] for val in vals ]
+    for year in years:
+        adata_year = adata[adata.obs['Collection Date'] == year]
+        val_count = { val: 0 for val in vals }
+        for n_seq, val in zip(adata_year.obs['n_seq'], adata_year.obs[var]):
+            val_count[val] += n_seq
+        comp = np.array([ val_count[val] for val in vals ], dtype=float)
+        comp_sum = float(np.sum(comp))
+        for i in range(len(comp)):
+            comps[i].append(comp[i])
+            norms[i].append(comp[i] / comp_sum)
+
+    x = np.array(range(len(years)))
+    plt.figure(figsize=(40, 10))
+    plt.stackplot(x, norms, labels=vals)
+    plt.xticks(x, [ str(year) for year in years ], rotation=45)
+    plt.legend()
+    plt.grid(b=None)
+    plt.savefig('figures/plot_composition_{}.png'.format(var), dpi=500)
+
+    plt.figure(figsize=(10, 40))
+    for i in range(len(vals)):
+        plt.subplot(len(vals), 1, i + 1)
+        plt.title(str(vals[i]))
+        plt.fill_between(x, comps[i], 0)
+        if i == len(vals) - 1:
+            plt.xticks(x, [ str(year) for year in years ], rotation=45)
+        plt.grid(b=None)
+    plt.savefig('figures/plot_composition_separate_{}.png'
+                .format(var), dpi=500)
+
+def plot_umap(adata):
+    sc.tl.umap(adata, min_dist=1.)
+    sc.pl.umap(adata, color='Host Species', save='_species.png')
+    sc.pl.umap(adata, color='Subtype', save='_subtype.png')
+    sc.pl.umap(adata, color='Collection Date', save='_date.png')
+    sc.pl.umap(adata, color='louvain', save='_louvain.png')
+    sc.pl.umap(adata, color='n_seq', save='_number.png',
+               s=np.log(np.array(adata.obs['n_seq']) * 100) + 1)
+
+def analyze_embedding(args, model, seqs):
+    seqs = embed_seqs(args, model, seqs)
 
     X, obs = [], {}
+    obs['n_seq'] = []
+    obs['seq'] = []
     for seq in seqs:
         for meta in seqs[seq]:
             X.append(meta['embedding'].mean(0))
@@ -260,38 +336,33 @@ def analyze_embedding(args, model, seqs):
                 if key not in obs:
                     obs[key] = []
                 obs[key].append(meta[key])
-            break # DEBUG
+            obs['n_seq'].append(len(seqs[seq]))
+            obs['seq'].append(seq)
+            break # Pick first meta entry for sequence.
     X = np.array(X)
+
     adata = AnnData(X)
     for key in obs:
-        if key == 'Subtype':
-            adata.obs[key] = [
-                val.strip('()').split('N')[0] for val in obs[key]
-            ]
-        elif key == 'Collection Date':
-            adata.obs[key] = [
-                int(val.split('/')[-1]) if val != '-N/A-' else 2019
-                for val in obs[key]
-            ]
-        elif key == 'Host Species':
-            adata.obs[key] = [
-                val.split(':')[1].lower() for val in obs[key]
-            ]
-        else:
-            adata.obs[key] = obs[key]
-
-    adata = adata[adata.obs['Host Species'] == 'human']
+        adata.obs[key] = obs[key]
+    adata = adata[
+        np.logical_or.reduce((
+            adata.obs['Host Species'] == 'human',
+            adata.obs['Host Species'] == 'avian',
+            adata.obs['Host Species'] == 'swine',
+        ))
+    ]
 
     sc.pp.neighbors(adata, n_neighbors=100, use_rep='X')
-    sc.tl.umap(adata)
-    sc.pl.umap(adata, color='Host Species', save='_species.png')
-    sc.pl.umap(adata, color='Subtype', save='_subtype.png')
-    sc.pl.umap(adata, color='Collection Date', save='_date.png')
-    sc.tl.draw_graph(adata)
-    sc.pl.draw_graph(adata, color='Host Species', save='_species.png')
-    sc.pl.draw_graph(adata, color='Subtype', save='_subtype.png')
-    sc.pl.draw_graph(adata, color='Collection Date', save='_date.png',
-                     edges=True)
+    sc.tl.louvain(adata, resolution=1.)
+
+    sc.set_figure_params(dpi_save=500)
+    plot_umap(adata)
+
+    adata_human = adata[adata.obs['Host Species'] == 'human']
+    plot_composition(adata_human, 'louvain')
+    plot_composition(adata_human, 'Subtype')
+
+    interpret_clusters(adata)
 
 if __name__ == '__main__':
     args = parse_args()

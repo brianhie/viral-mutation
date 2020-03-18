@@ -1,7 +1,11 @@
+from anndata import AnnData
+from collections import Counter
 import datetime
+import matplotlib.pyplot as plt
 import numpy as np
 import os
 import random
+import scanpy as sc
 import sys
 import warnings
 

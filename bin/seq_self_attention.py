@@ -67,10 +67,10 @@ class SelfAttention(keras.layers.Layer):
         self.attention_regularizer_weight = attention_regularizer_weight
         self._backend = keras.backend.backend()
 
-        if attention_type == SeqSelfAttention.ATTENTION_TYPE_ADD:
+        if attention_type == SelfAttention.ATTENTION_TYPE_ADD:
             self.Wx, self.Wt, self.bh = None, None, None
             self.Wa, self.ba = None, None
-        elif attention_type == SeqSelfAttention.ATTENTION_TYPE_MUL:
+        elif attention_type == SelfAttention.ATTENTION_TYPE_MUL:
             self.Wa, self.ba = None, None
         else:
             raise NotImplementedError('No implementation for attention type : ' + attention_type)
@@ -93,15 +93,15 @@ class SelfAttention(keras.layers.Layer):
             'attention_activation': keras.activations.serialize(self.attention_activation),
             'attention_regularizer_weight': self.attention_regularizer_weight,
         }
-        base_config = super(SeqSelfAttention, self).get_config()
+        base_config = super(SelfAttention, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
     def build(self, input_shape):
-        if self.attention_type == SeqSelfAttention.ATTENTION_TYPE_ADD:
+        if self.attention_type == SelfAttention.ATTENTION_TYPE_ADD:
             self._build_additive_attention(input_shape)
-        elif self.attention_type == SeqSelfAttention.ATTENTION_TYPE_MUL:
+        elif self.attention_type == SelfAttention.ATTENTION_TYPE_MUL:
             self._build_multiplicative_attention(input_shape)
-        super(SeqSelfAttention, self).build(input_shape)
+        super(SelfAttention, self).build(input_shape)
 
     def _build_additive_attention(self, input_shape):
         feature_dim = int(input_shape[2])
@@ -153,9 +153,9 @@ class SelfAttention(keras.layers.Layer):
     def call(self, inputs, mask=None, **kwargs):
         input_len = K.shape(inputs)[1]
 
-        if self.attention_type == SeqSelfAttention.ATTENTION_TYPE_ADD:
+        if self.attention_type == SelfAttention.ATTENTION_TYPE_ADD:
             e = self._call_additive_emission(inputs)
-        elif self.attention_type == SeqSelfAttention.ATTENTION_TYPE_MUL:
+        elif self.attention_type == SelfAttention.ATTENTION_TYPE_MUL:
             e = self._call_multiplicative_emission(inputs)
 
         if self.attention_activation is not None:
@@ -238,4 +238,4 @@ class SelfAttention(keras.layers.Layer):
 
     @staticmethod
     def get_custom_objects():
-        return {'SeqSelfAttention': SeqSelfAttention}
+        return {'SelfAttention': SelfAttention}

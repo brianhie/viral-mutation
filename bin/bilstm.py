@@ -70,7 +70,7 @@ class BiLSTMLanguageModel(object):
             lstm = LSTM(hidden_dim, return_sequences=True)
             x_pre = lstm(x_pre)
             x_post = lstm(x_post)
-        lstm = LSTM(hidden_dim)
+        lstm = LSTM(hidden_dim, return_sequences=attention)
         x_pre = lstm(x_pre)
         x_post = lstm(x_post)
 
