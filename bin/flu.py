@@ -276,6 +276,16 @@ def interpret_clusters(adata):
                 tprint('\t\t{}: {}'.format(val, count))
         tprint('')
 
+def seq_clusters(adata):
+    clusters = sorted(set(adata.obs['louvain']))
+    for cluster in clusters:
+        adata_cluster = adata[adata.obs['louvain'] == cluster]
+        counts = Counter(adata_cluster.obs['seq'])
+        with open('target/clusters/cluster{}.fa'.format(cluster), 'w') as of:
+            for i, (seq, count) in enumerate(counts.most_common()):
+                of.write('>cluster{}_{}_{}\n'.format(cluster, i, count))
+                of.write(seq + '\n\n')
+
 def plot_composition(adata, var):
     years = sorted(set(adata.obs['Collection Date']))
     vals = sorted(set(adata.obs[var]))
@@ -337,7 +347,7 @@ def analyze_embedding(args, model, seqs):
                     obs[key] = []
                 obs[key].append(meta[key])
             obs['n_seq'].append(len(seqs[seq]))
-            obs['seq'].append(seq)
+            obs['seq'].append(str(seq))
             break # Pick first meta entry for sequence.
     X = np.array(X)
 
@@ -363,6 +373,7 @@ def analyze_embedding(args, model, seqs):
     plot_composition(adata_human, 'Subtype')
 
     interpret_clusters(adata)
+    seq_clusters(adata)
 
 if __name__ == '__main__':
     args = parse_args()
