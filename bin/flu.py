@@ -269,7 +269,7 @@ def interpret_clusters(adata):
         tprint('Cluster {}'.format(cluster))
         adata_cluster = adata[adata.obs['louvain'] == cluster]
         for var in [ 'Collection Date', 'Country', 'Subtype',
-                     'Flu Season' ]:
+                     'Flu Season', 'Host Species', 'Strain Name' ]:
             tprint('\t{}:'.format(var))
             counts = Counter(adata_cluster.obs[var])
             for val, count in counts.most_common():
