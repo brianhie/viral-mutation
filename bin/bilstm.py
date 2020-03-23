@@ -56,6 +56,7 @@ class BiLSTMLanguageModel(object):
             n_hidden=2,
             n_epochs=1,
             batch_size=1000,
+            cache_dir='.',
             verbose=False
     ):
         input_pre = Input(shape=(seq_len - 1,))
@@ -93,6 +94,7 @@ class BiLSTMLanguageModel(object):
         self.n_hidden_ = n_hidden
         self.n_epochs_ = n_epochs
         self.batch_size_ = batch_size
+        self.cache_dir_ = cache_dir
         self.verbose_ = verbose
 
     def fit(self, X_cat, lengths):
@@ -107,10 +109,12 @@ class BiLSTMLanguageModel(object):
             metrics=[ 'accuracy' ]
         )
 
+        mkdir_p('{}/checkpoints/bilstm'.format(self.cache_dir_))
         model_name = 'bilstm{}'.format('-a' if self.attention_ else '')
         checkpoint = ModelCheckpoint(
-            'target/checkpoints/bilstm/{}_{}'
-            .format(model_name, self.hidden_dim_) + '-{epoch:02d}.hdf5',
+            '{}/checkpoints/bilstm/{}_{}'
+            .format(self.cache_dir_, model_name, self.hidden_dim_) +
+            '-{epoch:02d}.hdf5',
             save_best_only=False, save_weights_only=False,
             mode='auto', period=1
         )

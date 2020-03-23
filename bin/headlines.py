@@ -1,26 +1,21 @@
 from utils import *
 
-from Bio import BiopythonWarning
-from Bio import SeqIO
 from dateutil.parser import parse as dparse
+
+# Global variables.
+VOCABULARY = None
+START_INT = None
+END_INT = None
 
 np.random.seed(1)
 random.seed(1)
 
-AAs = [
-    'A', 'R', 'N', 'D', 'C', 'Q', 'E', 'G', 'H',
-    'I', 'L', 'K', 'M', 'F', 'P', 'S', 'T', 'W',
-    'Y', 'V', 'X', 'Z', 'J', 'U', 'B', 'Z'
-]
-START_INT = len(AAs) + 1
-END_INT = len(AAs) + 2
-
 def parse_args():
     import argparse
-    parser = argparse.ArgumentParser(description='Flu sequence analysis')
+    parser = argparse.ArgumentParser(description='Headline analysis')
     parser.add_argument('model_name', type=str,
                         help='Type of language model (e.g., hmm, lstm)')
-    parser.add_argument('--namespace', type=str, default='flu',
+    parser.add_argument('--namespace', type=str, default='headlines',
                         help='Model namespace')
     parser.add_argument('--checkpoint', type=str, default=None,
                         help='Model checkpoint')
@@ -35,38 +30,24 @@ def parse_args():
     args = parser.parse_args()
     return args
 
-def load_meta(meta_fnames):
-    metas = {}
-    for fname in meta_fnames:
-        with open(fname) as f:
-            header = f.readline().rstrip().split('\t')
-            for line in f:
-                fields = line.rstrip().split('\t')
-                accession = fields[1]
-                meta = {}
-                for key, value in zip(header, fields):
-                    if key == 'Subtype':
-                        meta[key] = value.strip('()').split('N')[0].split('/')[-1]
-                    elif key == 'Collection Date':
-                        meta[key] = int(value.split('/')[-1]) \
-                                    if value != '-N/A-' else 2019
-                    elif key == 'Host Species':
-                        meta[key] = value.split(':')[1].split('/')[-1].lower()
-                    else:
-                        meta[key] = value
-                metas[accession] = meta
-    return metas
+def parse_meta(timestamp, headline):
+    return {
+        'timestamp': timestamp,
+        'date': dparse(timestamp),
+        'year': int(timestamp[:4]),
+        'headline': headline,
+    }
 
-def process(fnames, meta_fnames):
-    metas = load_meta(meta_fnames)
-
+def process(fnames):
     seqs = {}
     for fname in fnames:
-        for record in SeqIO.parse(fname, 'fasta'):
-            if record.seq not in seqs:
-                seqs[record.seq] = []
-            accession = record.description.split('|')[0].split(':')[1]
-            seqs[record.seq].append(metas[accession])
+        with open(fname) as f:
+            for line in f:
+                timestamp, headline = f.split(',')
+                seq = headline.split()
+                if seq not in seqs:
+                    seqs[seq] = []
+                seqs[seq].append(parse_meta(timestamp, headline))
     return seqs
 
 def err_model(name):
@@ -133,43 +114,30 @@ def get_model(args, seq_len, vocab_size,):
     return model
 
 def split_seqs(seqs, split_method='random'):
-    with warnings.catch_warnings():
-        warnings.simplefilter('ignore', BiopythonWarning)
+    train_seqs, val_seqs = {}, {}
 
-        train_seqs, test_seqs, val_seqs = {}, {}, {}
+    new_cutoff = dparse('01-01-2019')
 
-        old_cutoff = dparse('01-01-1970')
-        new_cutoff = dparse('01-01-2019')
+    tprint('Splitting seqs...')
+    for seq in seqs:
+        # Pick validation set based on date.
+        seq_dates = [ meta['date'] for meta in seqs[seq] ]
+        if len(seq_dates) > 0:
+            oldest_date = sorted(seq_dates)[0]
+            if oldest_date >= new_cutoff:
+                val_seqs[seq] = seqs[seq]
+                continue
+        train_seqs[seq] = seqs[seq]
+    tprint('Done.')
 
-        tprint('Splitting seqs...')
-        for seq in seqs:
-            # Pick validation set based on date.
-            seq_dates = [
-                dparse(meta['Collection Date']) for meta in seqs[seq]
-                if meta['Collection Date'] != '-N/A-'
-            ]
-            if len(seq_dates) > 0:
-                oldest_date = sorted(seq_dates)[0]
-                if oldest_date < old_cutoff or oldest_date >= new_cutoff:
-                    val_seqs[seq] = seqs[seq]
-                    continue
-
-            # Randomly separate remainder into train and test sets for tuning.
-            rand = np.random.uniform()
-            if rand < 0.85:
-                train_seqs[seq] = seqs[seq]
-            else:
-                test_seqs[seq] = seqs[seq]
-        tprint('Done.')
-
-    return train_seqs, test_seqs, val_seqs
+    return train_seqs, val_seqs
 
 def featurize_seqs(seqs):
-    aa2idx = { aa: idx + 1 for idx, aa in enumerate(sorted(AAs)) }
+    global VOCABULARY, START_INT, END_INT
     sorted_seqs = sorted(seqs.keys())
     X = np.concatenate([
         np.array([ START_INT ] + [
-            aa2idx[aa] for aa in seq
+            VOCABULARY[word] for word in seq
         ] + [ END_INT ]) for seq in sorted_seqs
     ]).reshape(-1, 1)
     lens = np.array([ len(seq) + 2 for seq in sorted_seqs ])
@@ -206,26 +174,29 @@ def report_performance(model_name, model, train_seqs, test_seqs):
            .format(model_name, perplexity(logprob, len(lengths_test))))
 
 def setup(args):
-    fnames = [ 'data/influenza/ird_influenzaA_HA_allspecies.fa' ]
-    meta_fnames = [ 'data/influenza/ird_influenzaA_HA_allspecies_meta.tsv' ]
+    global VOCABULARY, START_INT, END_INT
 
-    with warnings.catch_warnings():
-        warnings.simplefilter('ignore', BiopythonWarning)
-        seqs = process(fnames, meta_fnames)
+    fnames = [ 'data/headlines/abcnews-date-text.csv' ]
+
+    seqs = process(fnames)
 
     seq_len = max([ len(seq) for seq in seqs ]) + 2
-    vocab_size = len(AAs) + 2
+    VOCABULARY = { word for word in seq for seq in seqs }
+    VOCABULARY = { word: idx + 1 for idx, word in enumerate(VOCABULARY) }
+    START_INT = len(VOCABULARY) + 1
+    END_INT = len(VOCABULARY) + 2
+    vocab_size = len(VOCABULARY) + 2
 
     model = get_model(args, seq_len, vocab_size)
 
     return model, seqs
 
 def train_test(args, model, seqs):
-    train_seqs, test_seqs, val_seqs = split_seqs(seqs)
+    train_seqs, val_seqs = split_seqs(seqs)
     if args.train:
         model = fit_model(args.model_name, model, train_seqs)
     if args.test:
-        report_performance(args.model_name, model, train_seqs, test_seqs)
+        report_performance(args.model_name, model, train_seqs, val_seqs)
 
 def embed_seqs(args, model, seqs):
     X_cat, lengths = featurize_seqs(seqs)
@@ -276,79 +247,16 @@ def interpret_clusters(adata):
     for cluster in clusters:
         tprint('Cluster {}'.format(cluster))
         adata_cluster = adata[adata.obs['louvain'] == cluster]
-        for var in [ 'Collection Date', 'Country', 'Subtype',
-                     'Flu Season', 'Host Species', 'Strain Name' ]:
-            tprint('\t{}:'.format(var))
-            counts = Counter(adata_cluster.obs[var])
-            for val, count in counts.most_common():
-                tprint('\t\t{}: {}'.format(val, count))
+        counts = Counter(adata_cluster.obs['headline'])
+        for val, count in counts.most_common():
+            tprint('\t\t{}: {}'.format(val, count))
         tprint('')
-
-def seq_clusters(adata):
-    clusters = sorted(set(adata.obs['louvain']))
-    for cluster in clusters:
-        adata_cluster = adata[adata.obs['louvain'] == cluster]
-        counts = Counter(adata_cluster.obs['seq'])
-        with open('target/clusters/cluster{}.fa'.format(cluster), 'w') as of:
-            for i, (seq, count) in enumerate(counts.most_common()):
-                of.write('>cluster{}_{}_{}\n'.format(cluster, i, count))
-                of.write(seq + '\n\n')
-
-def plot_composition(adata, var):
-    years = sorted(set(adata.obs['Collection Date']))
-    vals = sorted(set(adata.obs[var]))
-
-    comps = [ [] for val in vals ]
-    norms = [ [] for val in vals ]
-    for year in years:
-        adata_year = adata[adata.obs['Collection Date'] == year]
-        val_count = { val: 0 for val in vals }
-        for n_seq, val in zip(adata_year.obs['n_seq'], adata_year.obs[var]):
-            val_count[val] += n_seq
-        comp = np.array([ val_count[val] for val in vals ], dtype=float)
-        comp_sum = float(np.sum(comp))
-        for i in range(len(comp)):
-            comps[i].append(comp[i])
-            norms[i].append(comp[i] / comp_sum)
-
-    x = np.array(range(len(years)))
-    plt.figure(figsize=(40, 10))
-    plt.stackplot(x, norms, labels=vals)
-    plt.xticks(x, [ str(year) for year in years ], rotation=45)
-    plt.legend()
-    plt.grid(b=None)
-    plt.savefig('figures/plot_composition_{}.png'.format(var), dpi=500)
-
-    plt.figure(figsize=(10, 40))
-    for i in range(len(vals)):
-        plt.subplot(len(vals), 1, i + 1)
-        plt.title(str(vals[i]))
-        plt.fill_between(x, comps[i], 0)
-        if i == len(vals) - 1:
-            plt.xticks(x, [ str(year) for year in years ], rotation=45)
-        plt.grid(b=None)
-    plt.savefig('figures/plot_composition_separate_{}.png'
-                .format(var), dpi=500)
 
 def plot_umap(adata):
     sc.tl.umap(adata, min_dist=1.)
-    sc.pl.umap(adata, color='Host Species', save='_species.png')
-    sc.pl.umap(adata, color='Subtype', save='_subtype.png')
-    sc.pl.umap(adata, color='Collection Date', save='_date.png')
     sc.pl.umap(adata, color='louvain', save='_louvain.png')
-    sc.pl.umap(adata, color='n_seq', save='_number.png',
-               s=np.log(np.array(adata.obs['n_seq']) * 100) + 1)
-
-def plot_umap_time(adata):
-    sc.pp.neighbors(adata, n_neighbors=100, use_rep='X')
-    sc.tl.umap(adata, min_dist=0.1, n_components=1)
-    adata.obsm['X_umap'] = np.hstack([
-        np.array(adata.obs['Collection Date']).reshape(-1, 1),
-        adata.obsm['X_umap']
-    ])
-    sc.pl.umap(adata, color='Host Species', save='_time_species.png')
-    sc.pl.umap(adata, color='Subtype', save='_time_subtype.png')
-    sc.pl.umap(adata, color='louvain', save='_time_louvain.png')
+    sc.pl.umap(adata, color='year', save='_year.png')
+    sc.pl.umap(adata, color='date', save='_date.png')
 
 def analyze_embedding(args, model, seqs):
     seqs = embed_seqs(args, model, seqs)
@@ -374,13 +282,6 @@ def analyze_embedding(args, model, seqs):
     adata = AnnData(X)
     for key in obs:
         adata.obs[key] = obs[key]
-    adata = adata[
-        np.logical_or.reduce((
-            adata.obs['Host Species'] == 'human',
-            adata.obs['Host Species'] == 'avian',
-            adata.obs['Host Species'] == 'swine',
-        ))
-    ]
 
     sc.pp.neighbors(adata, n_neighbors=100, use_rep='X')
     sc.tl.louvain(adata, resolution=1.)
@@ -388,13 +289,7 @@ def analyze_embedding(args, model, seqs):
     sc.set_figure_params(dpi_save=500)
     plot_umap(adata)
 
-    adata_human = adata[adata.obs['Host Species'] == 'human']
-    plot_composition(adata_human, 'louvain')
-    plot_composition(adata_human, 'Subtype')
-    plot_umap_time(adata_human)
-
     interpret_clusters(adata)
-    #seq_clusters(adata)
 
 if __name__ == '__main__':
     args = parse_args()
