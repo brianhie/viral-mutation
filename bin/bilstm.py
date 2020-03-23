@@ -39,7 +39,6 @@ def _split_and_pad(X_cat, lengths, seq_len, vocab_size, verbose):
     )
     X_post = np.flip(X_post, 1)
     X = [ X_pre, X_post ]
-    y = to_categorical(y, num_classes=vocab_size + 1)
 
     if verbose > 1:
         tprint('Done splitting and padding.')
@@ -105,7 +104,7 @@ class BiLSTMLanguageModel(object):
         opt = Adam(learning_rate=0.001, beta_1=0.9, beta_2=0.999,
                    amsgrad=False)
         self.model_.compile(
-            loss='categorical_crossentropy', optimizer=opt,
+            loss='sparse_categorical_crossentropy', optimizer=opt,
             metrics=[ 'accuracy' ]
         )
 

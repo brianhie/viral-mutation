@@ -42,9 +42,10 @@ def process(fnames):
     seqs = {}
     for fname in fnames:
         with open(fname) as f:
+            f.readline() # Consume header.
             for line in f:
-                timestamp, headline = f.split(',')
-                seq = headline.split()
+                timestamp, headline = line.rstrip().split(',')
+                seq = tuple(headline.split())
                 if seq not in seqs:
                     seqs[seq] = []
                 seqs[seq].append(parse_meta(timestamp, headline))
@@ -181,7 +182,7 @@ def setup(args):
     seqs = process(fnames)
 
     seq_len = max([ len(seq) for seq in seqs ]) + 2
-    VOCABULARY = { word for word in seq for seq in seqs }
+    VOCABULARY = { word for seq in seqs for word in seq }
     VOCABULARY = { word: idx + 1 for idx, word in enumerate(VOCABULARY) }
     START_INT = len(VOCABULARY) + 1
     END_INT = len(VOCABULARY) + 2

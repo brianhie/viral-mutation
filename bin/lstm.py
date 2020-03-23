@@ -5,11 +5,9 @@ tf.set_random_seed(1)
 
 from keras.callbacks.callbacks import ModelCheckpoint
 from keras.layers import Dense, Embedding, LSTM
-from keras.losses import categorical_crossentropy
 from keras.models import Sequential
 from keras.optimizers import Adam, SGD
 from keras.preprocessing.sequence import pad_sequences
-from keras.utils import to_categorical
 
 def _iterate_lengths(lengths, seq_len):
     curr_idx = 0
@@ -43,7 +41,6 @@ def _split_and_pad(X_cat, lengths, seq_len, vocab_size, verbose):
         dtype='int32', padding='pre', truncating='pre', value=0.
     )
     X, y = padded[:, :-1], padded[:, -1]
-    y = to_categorical(y, num_classes=vocab_size + 1)
 
     if verbose > 1:
         tprint('Done splitting and padding.')
@@ -90,7 +87,7 @@ class LSTMLanguageModel(object):
                    amsgrad=False)
         #opt = SGD(learning_rate=0.001, momentum=0.2, nesterov=True)
         self.model_.compile(
-            loss='categorical_crossentropy', optimizer=opt,
+            loss='sparse_categorical_crossentropy', optimizer=opt,
             metrics=[ 'accuracy' ]
         )
 
