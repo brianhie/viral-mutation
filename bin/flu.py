@@ -49,7 +49,7 @@ def load_meta(meta_fnames):
                         meta[key] = value.strip('()').split('N')[0].split('/')[-1]
                     elif key == 'Collection Date':
                         meta[key] = int(value.split('/')[-1]) \
-                                    if value != '-N/A-' else 2019
+                                    if value != '-N/A-' else None
                     elif key == 'Host Species':
                         meta[key] = value.split(':')[1].split('/')[-1].lower()
                     else:
@@ -138,28 +138,22 @@ def split_seqs(seqs, split_method='random'):
 
         train_seqs, test_seqs, val_seqs = {}, {}, {}
 
-        old_cutoff = dparse('01-01-1970')
-        new_cutoff = dparse('01-01-2019')
+        old_cutoff = 1970
+        new_cutoff = 2019
 
         tprint('Splitting seqs...')
         for seq in seqs:
             # Pick validation set based on date.
             seq_dates = [
-                dparse(meta['Collection Date']) for meta in seqs[seq]
-                if meta['Collection Date'] != '-N/A-'
+                meta['Collection Date'] for meta in seqs[seq]
+                if meta['Collection Date'] is not None
             ]
             if len(seq_dates) > 0:
                 oldest_date = sorted(seq_dates)[0]
                 if oldest_date < old_cutoff or oldest_date >= new_cutoff:
                     val_seqs[seq] = seqs[seq]
                     continue
-
-            # Randomly separate remainder into train and test sets for tuning.
-            rand = np.random.uniform()
-            if rand < 0.85:
-                train_seqs[seq] = seqs[seq]
-            else:
-                test_seqs[seq] = seqs[seq]
+            train_seqs[seq] = seqs[seq]
         tprint('Done.')
 
     return train_seqs, test_seqs, val_seqs

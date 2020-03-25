@@ -17,6 +17,8 @@ def parse_args():
                         help='Type of language model (e.g., hmm, lstm)')
     parser.add_argument('--namespace', type=str, default='headlines',
                         help='Model namespace')
+    parser.add_argument('--dim', type=int, default=256,
+                        help='Embedding dimension')
     parser.add_argument('--checkpoint', type=str, default=None,
                         help='Model checkpoint')
     parser.add_argument('--train', action='store_true',
@@ -25,8 +27,8 @@ def parse_args():
                         help='Train model')
     parser.add_argument('--embed', action='store_true',
                         help='Analyze embeddings')
-    parser.add_argument('--dim', type=int, default=256,
-                        help='Embedding dimension')
+    parser.add_argument('--semantics', action='store_true',
+                        help='Analyze mutational semantic change')
     args = parser.parse_args()
     return args
 
@@ -182,7 +184,7 @@ def setup(args):
     seqs = process(fnames)
 
     seq_len = max([ len(seq) for seq in seqs ]) + 2
-    VOCABULARY = { word for seq in seqs for word in seq }
+    VOCABULARY = sorted({ word for seq in seqs for word in seq })
     VOCABULARY = { word: idx + 1 for idx, word in enumerate(VOCABULARY) }
     START_INT = len(VOCABULARY) + 1
     END_INT = len(VOCABULARY) + 2
@@ -199,40 +201,51 @@ def train_test(args, model, seqs):
     if args.test:
         report_performance(args.model_name, model, train_seqs, val_seqs)
 
-def embed_seqs(args, model, seqs):
-    X_cat, lengths = featurize_seqs(seqs)
-
+def load_hidden_model(args, model):
     from keras.models import Model
     if args.model_name == 'lstm':
-        from lstm import _iterate_lengths, _split_and_pad
         layer_name = 'lstm_{}'.format(model.n_hidden_)
     elif args.model_name == 'bilstm':
-        from bilstm import _iterate_lengths, _split_and_pad
         layer_name = 'concatenate_1'
     else:
         raise ValueError('No embedding support for model {}'
                          .format(args.model_name))
-
     hidden = Model(
         inputs=model.model_.input,
         outputs=model.model_.get_layer(layer_name).output
     )
+    return hidden
+
+def embed_seqs(args, model, seqs, use_cache=True, verbose=True):
+    X_cat, lengths = featurize_seqs(seqs)
+
+    hidden = load_hidden_model(args, model)
+
+    if args.model_name == 'lstm':
+        from lstm import _iterate_lengths, _split_and_pad
+    elif args.model_name == 'bilstm':
+        from bilstm import _iterate_lengths, _split_and_pad
+    else:
+        raise ValueError('No embedding support for model {}'
+                         .format(args.model_name))
 
     mkdir_p('target/{}/embedding'.format(args.namespace))
     embed_fname = ('target/{}/embedding/{}_{}.npy'
                    .format(args.namespace, args.model_name, args.dim))
-    if os.path.exists(embed_fname):
+    if os.path.exists(embed_fname) and use_cache:
         embed_cat = np.load(embed_fname)
     else:
         X = _split_and_pad(
             X_cat, lengths,
-            model.seq_len_, model.vocab_size_, model.verbose_
+            model.seq_len_, model.vocab_size_, verbose
         )[0]
-        tprint('Embedding...')
-        embed_cat = hidden.predict(X, batch_size=5000,
-                                   verbose=model.verbose_ > 0)
-        np.save(embed_fname, embed_cat)
-        tprint('Done embedding.')
+        if verbose:
+            tprint('Embedding...')
+        embed_cat = hidden.predict(X, batch_size=2500, verbose=verbose)
+        if use_cache:
+            np.save(embed_fname, embed_cat)
+        if verbose:
+            tprint('Done embedding.')
 
     sorted_seqs = sorted(seqs)
     for seq, (start, end) in zip(
@@ -260,7 +273,7 @@ def plot_umap(adata):
     sc.pl.umap(adata, color='date', save='_date.png')
 
 def analyze_embedding(args, model, seqs):
-    seqs = embed_seqs(args, model, seqs)
+    seqs = embed_seqs(args, model, seqs, use_cache=True)
 
     X, obs = [], {}
     obs['n_seq'] = []
@@ -284,13 +297,91 @@ def analyze_embedding(args, model, seqs):
     for key in obs:
         adata.obs[key] = obs[key]
 
-    sc.pp.neighbors(adata, n_neighbors=100, use_rep='X')
+    sc.pp.neighbors(adata, n_neighbors=15, use_rep='X')
     sc.tl.louvain(adata, resolution=1.)
 
     sc.set_figure_params(dpi_save=500)
     plot_umap(adata)
 
     interpret_clusters(adata)
+
+def analyze_semantics(args, model, seq_to_mutate, verbose=False,
+                      prob_cutoff=1e-4, n_most_probable=100, beta=1.,
+                      plot_acquisition=False):
+    seq_to_mutate = tuple(seq_to_mutate)
+    seqs = { seq_to_mutate: [ {} ] }
+    X_cat, lengths = featurize_seqs(seqs)
+
+    if args.model_name == 'lstm':
+        from lstm import _split_and_pad
+    elif args.model_name == 'bilstm':
+        from bilstm import _split_and_pad
+    else:
+        raise ValueError('No semantics support for model {}'
+                         .format(args.model_name))
+
+    X = _split_and_pad(X_cat, lengths, model.seq_len_,
+                       model.vocab_size_, False)[0]
+    y_pred = model.model_.predict(X, batch_size=2500)
+    assert(y_pred.shape[0] == len(seq_to_mutate) + 2)
+    assert(y_pred.shape[1] == len(VOCABULARY) + 3)
+
+    word_pos_prob = {}
+    for i in range(len(seq_to_mutate)):
+        for word in VOCABULARY:
+            word_idx = VOCABULARY[word]
+            prob = y_pred[i + 1, word_idx]
+            if prob < prob_cutoff:
+                continue
+            word_pos_prob[(word, i)] = prob
+
+    prob_sorted = sorted(word_pos_prob.items(), key=lambda x: -x[1])
+    prob_seqs = { seq_to_mutate: [ {} ] }
+    seq_prob = {}
+    for (word, pos), prob in prob_sorted:
+        mutable = list(seq_to_mutate)
+        mutable[pos] = word
+        prob_seqs[tuple(mutable)] = [ {} ]
+        seq_prob[tuple(mutable)] = prob
+
+    prob_seqs = embed_seqs(args, model, prob_seqs,
+                           use_cache=False, verbose=verbose)
+    base_embedding = prob_seqs[seq_to_mutate][0]['embedding']
+    seq_change = {}
+    for seq in prob_seqs:
+        embedding = prob_seqs[seq][0]['embedding']
+        # L1 distance between embedding vectors.
+        seq_change[seq] = abs(base_embedding - embedding).sum()
+
+    seq_prob_sorted = sorted(seq_prob.items(), key=lambda x: -x[1])
+    seq_change_sorted = sorted(seq_change.items(), key=lambda x: -x[1])
+
+    headlines = np.array([ ' '.join(seq) for seq in sorted(seq_prob.keys()) ])
+    prob = np.array([ seq_prob[seq] for seq in sorted(seq_prob.keys()) ])
+    change = np.array([ seq_change[seq] for seq in sorted(seq_change.keys()) ])
+    acquisition = ss.rankdata(change) + (beta * ss.rankdata(prob))
+
+    if plot_acquisition:
+        plt.figure()
+        plt.scatter(np.log10(prob), change,
+                    c=acquisition, cmap='viridis', alpha=0.3)
+        plt.title(' '.join(seq_to_mutate))
+        plt.xlabel('$ \log_{10}(p(x_i)) $')
+        plt.ylabel('$ \Delta \Theta $')
+        plt.savefig('figures/headline_acquisition.png', dpi=300)
+        plt.close()
+
+    tprint('Original headline: ' + ' '.join(seq_to_mutate))
+    tprint('Modifications:')
+    for idx in np.argsort(-acquisition)[:n_most_probable]:
+        tprint('{}: {} (change), {} (prob)'.format(
+            headlines[idx], change[idx], prob[idx]
+        ))
+    tprint('Most probable:')
+    for idx in np.argsort(-prob)[:n_most_probable]:
+        tprint('{}: {} (change), {} (prob)'.format(
+            headlines[idx], change[idx], prob[idx]
+        ))
 
 if __name__ == '__main__':
     args = parse_args()
@@ -314,3 +405,15 @@ if __name__ == '__main__':
             raise ValueError('Embeddings not available for models: {}'
                              .format(', '.join(no_embed)))
         analyze_embedding(args, model, seqs)
+
+    if args.semantics:
+        if args.checkpoint is None and not args.train:
+            raise ValueError('Model must be trained or loaded '
+                             'from checkpoint.')
+        random_sample = np.random.choice(
+            [ ' '.join(seq) for seq in seqs ], 100
+        )
+        for headline in random_sample:
+            tprint('')
+            analyze_semantics(args, model, headline.split(' '),
+                              n_most_probable=5, beta=0.25)
