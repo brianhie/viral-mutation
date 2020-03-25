@@ -32,6 +32,8 @@ def parse_args():
                         help='Analyze embeddings')
     parser.add_argument('--dim', type=int, default=256,
                         help='Embedding dimension')
+    parser.add_argument('--semantics', action='store_true',
+                        help='Analyze mutational semantic change')
     args = parser.parse_args()
     return args
 

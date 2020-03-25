@@ -370,6 +370,7 @@ def analyze_semantics(args, model, seq_to_mutate, verbose=False,
         plt.ylabel('$ \Delta \Theta $')
         plt.savefig('figures/headline_acquisition.png', dpi=300)
         plt.close()
+        exit()
 
     tprint('Original headline: ' + ' '.join(seq_to_mutate))
     tprint('Modifications:')
@@ -379,6 +380,11 @@ def analyze_semantics(args, model, seq_to_mutate, verbose=False,
         ))
     tprint('Most probable:')
     for idx in np.argsort(-prob)[:n_most_probable]:
+        tprint('{}: {} (change), {} (prob)'.format(
+            headlines[idx], change[idx], prob[idx]
+        ))
+    tprint('Closest:')
+    for idx in np.argsort(change)[:n_most_probable]:
         tprint('{}: {} (change), {} (prob)'.format(
             headlines[idx], change[idx], prob[idx]
         ))
