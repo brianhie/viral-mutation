@@ -63,9 +63,18 @@ def load_lee2019():
             assert(len(seq) == len(escaped))
             if escaped not in seqs_escape:
                 seqs_escape[escaped] = []
+
+            if '-age-' in fields[0]:
+                species = 'human'
+            elif 'ferret-' in fields[0]:
+                species = 'ferret'
+            else:
+                species = 'antibody'
+
             seqs_escape[escaped].append({
                 'abs_diff_selection': float(fields[11]),
                 'antibody': fields[1],
+                'species': species,
             })
 
     return seq, seqs_escape

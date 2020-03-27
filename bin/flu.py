@@ -1,19 +1,10 @@
-from utils import *
+from mutation import *
 
 from Bio import BiopythonWarning
 from Bio import SeqIO
-from dateutil.parser import parse as dparse
 
 np.random.seed(1)
 random.seed(1)
-
-AAs = [
-    'A', 'R', 'N', 'D', 'C', 'Q', 'E', 'G', 'H',
-    'I', 'L', 'K', 'M', 'F', 'P', 'S', 'T', 'W',
-    'Y', 'V', 'X', 'Z', 'J', 'U', 'B', 'Z'
-]
-START_INT = len(AAs) + 1
-END_INT = len(AAs) + 2
 
 def parse_args():
     import argparse
@@ -26,8 +17,10 @@ def parse_args():
                         help='Model checkpoint')
     parser.add_argument('--train', action='store_true',
                         help='Train model')
+    parser.add_argument('--train-split', action='store_true',
+                        help='Train model on portion of data')
     parser.add_argument('--test', action='store_true',
-                        help='Train model')
+                        help='Test model')
     parser.add_argument('--embed', action='store_true',
                         help='Analyze embeddings')
     parser.add_argument('--dim', type=int, default=256,
@@ -71,69 +64,6 @@ def process(fnames, meta_fnames):
             seqs[record.seq].append(metas[accession])
     return seqs
 
-def err_model(name):
-    raise ValueError('Model {} not supported'.format(name))
-
-def get_model(args, seq_len, vocab_size,):
-    if args.model_name == 'hmm':
-        from hmmlearn.hmm import MultinomialHMM
-        model = MultinomialHMM(
-            n_components=16,
-            startprob_prior=1.0,
-            transmat_prior=1.0,
-            algorithm='viterbi',
-            random_state=1,
-            n_iter=100,
-            tol=0.01,
-            verbose=True,
-            params='ste',
-            init_params='ste'
-        )
-    elif args.model_name == 'lstm':
-        from lstm import LSTMLanguageModel
-        model = LSTMLanguageModel(
-            seq_len,
-            vocab_size,
-            embedding_dim=20,
-            hidden_dim=args.dim,
-            n_hidden=2,
-            n_epochs=20,
-            batch_size=1000,
-            cache_dir='target/{}'.format(args.namespace),
-            verbose=2,
-        )
-    elif args.model_name == 'bilstm':
-        from bilstm import BiLSTMLanguageModel
-        model = BiLSTMLanguageModel(
-            seq_len,
-            vocab_size,
-            embedding_dim=20,
-            hidden_dim=args.dim,
-            n_hidden=2,
-            n_epochs=20,
-            batch_size=1000,
-            cache_dir='target/{}'.format(args.namespace),
-            verbose=2,
-        )
-    elif args.model_name == 'bilstm-a':
-        from bilstm import BiLSTMLanguageModel
-        model = BiLSTMLanguageModel(
-            seq_len,
-            vocab_size,
-            attention=True,
-            embedding_dim=20,
-            hidden_dim=args.dim,
-            n_hidden=2,
-            n_epochs=20,
-            batch_size=1000,
-            cache_dir='target/{}'.format(args.namespace),
-            verbose=2,
-        )
-    else:
-        err_model(args.model_name)
-
-    return model
-
 def split_seqs(seqs, split_method='random'):
     with warnings.catch_warnings():
         warnings.simplefilter('ignore', BiopythonWarning)
@@ -160,47 +90,6 @@ def split_seqs(seqs, split_method='random'):
 
     return train_seqs, test_seqs, val_seqs
 
-def featurize_seqs(seqs):
-    aa2idx = { aa: idx + 1 for idx, aa in enumerate(sorted(AAs)) }
-    sorted_seqs = sorted(seqs.keys())
-    X = np.concatenate([
-        np.array([ START_INT ] + [
-            aa2idx[aa] for aa in seq
-        ] + [ END_INT ]) for seq in sorted_seqs
-    ]).reshape(-1, 1)
-    lens = np.array([ len(seq) + 2 for seq in sorted_seqs ])
-    assert(sum(lens) == X.shape[0])
-    return X, lens
-
-def fit_model(name, model, seqs):
-    X, lengths = featurize_seqs(seqs)
-
-    if name == 'hmm':
-        model.fit(X, lengths)
-    elif name == 'lstm':
-        model.fit(X, lengths)
-    elif name == 'bilstm':
-        model.fit(X, lengths)
-    elif name == 'bilstm-a':
-        model.fit(X, lengths)
-    else:
-        err_model(name)
-
-    return model
-
-def perplexity(logprob, n_samples):
-    return -logprob / n_samples
-
-def report_performance(model_name, model, train_seqs, test_seqs):
-    X_train, lengths_train = featurize_seqs(train_seqs)
-    logprob = model.score(X_train, lengths_train)
-    tprint('Model {}, train perplexity: {}'
-           .format(model_name, perplexity(logprob, len(lengths_train))))
-    X_test, lengths_test = featurize_seqs(test_seqs)
-    logprob = model.score(X_test, lengths_test)
-    tprint('Model {}, test perplexity: {}'
-           .format(model_name, perplexity(logprob, len(lengths_test))))
-
 def setup(args):
     fnames = [ 'data/influenza/ird_influenzaA_HA_allspecies.fa' ]
     meta_fnames = [ 'data/influenza/ird_influenzaA_HA_allspecies_meta.tsv' ]
@@ -215,57 +104,6 @@ def setup(args):
     model = get_model(args, seq_len, vocab_size)
 
     return model, seqs
-
-def train_test(args, model, seqs):
-    train_seqs, test_seqs, val_seqs = split_seqs(seqs)
-    if args.train:
-        model = fit_model(args.model_name, model, train_seqs)
-    if args.test:
-        report_performance(args.model_name, model, train_seqs, test_seqs)
-
-def embed_seqs(args, model, seqs):
-    X_cat, lengths = featurize_seqs(seqs)
-
-    from keras.models import Model
-    if args.model_name == 'lstm':
-        from lstm import _iterate_lengths, _split_and_pad
-        layer_name = 'lstm_{}'.format(model.n_hidden_)
-    elif args.model_name == 'bilstm':
-        from bilstm import _iterate_lengths, _split_and_pad
-        layer_name = 'concatenate_1'
-    else:
-        raise ValueError('No embedding support for model {}'
-                         .format(args.model_name))
-
-    hidden = Model(
-        inputs=model.model_.input,
-        outputs=model.model_.get_layer(layer_name).output
-    )
-
-    mkdir_p('target/{}/embedding'.format(args.namespace))
-    embed_fname = ('target/{}/embedding/{}_{}.npy'
-                   .format(args.namespace, args.model_name, args.dim))
-    if os.path.exists(embed_fname):
-        embed_cat = np.load(embed_fname)
-    else:
-        X = _split_and_pad(
-            X_cat, lengths,
-            model.seq_len_, model.vocab_size_, model.verbose_
-        )[0]
-        tprint('Embedding...')
-        embed_cat = hidden.predict(X, batch_size=5000,
-                                   verbose=model.verbose_ > 0)
-        np.save(embed_fname, embed_cat)
-        tprint('Done embedding.')
-
-    sorted_seqs = sorted(seqs)
-    for seq, (start, end) in zip(
-            sorted_seqs, _iterate_lengths(lengths, model.seq_len_)):
-        embedding = embed_cat[start:end]
-        for meta in seqs[seq]:
-            meta['embedding'] = embedding
-
-    return seqs
 
 def interpret_clusters(adata):
     clusters = sorted(set(adata.obs['louvain']))
@@ -346,8 +184,8 @@ def plot_umap_time(adata):
     sc.pl.umap(adata, color='Subtype', save='_time_subtype.png')
     sc.pl.umap(adata, color='louvain', save='_time_louvain.png')
 
-def analyze_embedding(args, model, seqs):
-    seqs = embed_seqs(args, model, seqs)
+def analyze_embedding(args, model, seqs, vocabulary):
+    seqs = embed_seqs(args, model, seqs, vocabulary)
 
     X, obs = [], {}
     obs['n_seq'] = []
@@ -392,8 +230,77 @@ def analyze_embedding(args, model, seqs):
     interpret_clusters(adata)
     #seq_clusters(adata)
 
+def analyze_semantics(args, model, vocabulary, seq_to_mutate, escape_seqs,
+                      prob_cutoff=1e-4, beta=1., plot_acquisition=False,
+                      verbose=False):
+    seqs = { seq_to_mutate: [ {} ] }
+    X_cat, lengths = featurize_seqs(seqs, vocabulary)
+
+    if args.model_name == 'lstm':
+        from lstm import _split_and_pad
+    elif args.model_name == 'bilstm':
+        from bilstm import _split_and_pad
+    else:
+        raise ValueError('No semantics support for model {}'
+                         .format(args.model_name))
+
+    X = _split_and_pad(X_cat, lengths, model.seq_len_,
+                       model.vocab_size_, verbose)[0]
+    y_pred = model.model_.predict(X, batch_size=2500)
+    assert(y_pred.shape[0] == len(seq_to_mutate) + 2)
+    #assert(y_pred.shape[1] == len(AAs) + 3)
+
+    word_pos_prob = {}
+    for i in range(len(seq_to_mutate)):
+        for word in vocabulary:
+            word_idx = vocabulary[word]
+            prob = y_pred[i + 1, word_idx]
+            if prob < prob_cutoff:
+                continue
+            word_pos_prob[(word, i)] = prob
+
+    prob_sorted = sorted(word_pos_prob.items(), key=lambda x: -x[1])
+    prob_seqs = { seq_to_mutate: [ {} ] }
+    seq_prob = {}
+    for (word, pos), prob in prob_sorted:
+        mutable = seq_to_mutate[:pos] + word + seq_to_mutate[pos + 1:]
+        prob_seqs[mutable] = [ {} ]
+        seq_prob[mutable] = prob
+
+    prob_seqs = embed_seqs(args, model, prob_seqs, vocabulary,
+                           use_cache=False, verbose=verbose)
+    base_embedding = prob_seqs[seq_to_mutate][0]['embedding']
+    seq_change = {}
+    for seq in prob_seqs:
+        embedding = prob_seqs[seq][0]['embedding']
+        # L1 distance between embedding vectors.
+        seq_change[seq] = abs(base_embedding - embedding).sum()
+
+    seqs = np.array([ str(seq) for seq in sorted(seq_prob.keys()) ])
+    prob = np.array([ seq_prob[seq] for seq in seqs ])
+    change = np.array([ seq_change[seq] for seq in seqs ])
+    escape_idx = np.array([ seq in escape_seqs for seq in seqs ])
+
+    dirname = 'target/flu/semantics/cache'
+    mkdir_p(dirname)
+    cache_fname = dirname + '/plot.npz'
+    if not os.path.exists(cache_fname):
+        np.savez_compressed(
+            cache_fname, prob, change, escape_idx,
+        )
+    from cached_semantics import cached_escape_semantics
+    cached_escape_semantics(cache_fname, beta,
+                            plot=plot_acquisition)
+
 if __name__ == '__main__':
     args = parse_args()
+
+    AAs = [
+        'A', 'R', 'N', 'D', 'C', 'Q', 'E', 'G', 'H',
+        'I', 'L', 'K', 'M', 'F', 'P', 'S', 'T', 'W',
+        'Y', 'V', 'X', 'Z', 'J', 'U', 'B', 'Z'
+    ]
+    vocabulary = { aa: idx + 1 for idx, aa in enumerate(sorted(AAs)) }
 
     model, seqs = setup(args)
 
@@ -402,8 +309,8 @@ if __name__ == '__main__':
         tprint('Model summary:')
         print(model.model_.summary())
 
-    if args.train or args.test:
-        train_test(args, model, seqs)
+    if args.train or args.train_split or args.test:
+        train_test(args, model, seqs, vocabulary)
 
     if args.embed:
         if args.checkpoint is None and not args.train:
@@ -413,4 +320,23 @@ if __name__ == '__main__':
         if args.model_name in no_embed:
             raise ValueError('Embeddings not available for models: {}'
                              .format(', '.join(no_embed)))
-        analyze_embedding(args, model, seqs)
+        analyze_embedding(args, model, seqs, vocabulary)
+
+    if args.semantics:
+        if args.checkpoint is None and not args.train:
+            raise ValueError('Model must be trained or loaded '
+                             'from checkpoint.')
+
+        from escape import load_lee2018, load_lee2019
+
+        #tprint('Lee et al. 2018...')
+        #seq_to_mutate, escape_seqs = load_lee2018()
+        #analyze_semantics(args, model, vocabulary, seq_to_mutate, escape_seqs,
+        #                  prob_cutoff=1e-6, beta=0.,)
+        #tprint('')
+
+        tprint('Lee et al. 2019...')
+        seq_to_mutate, escape_seqs = load_lee2019()
+        analyze_semantics(args, model, vocabulary, seq_to_mutate, escape_seqs,
+                          prob_cutoff=0., beta=0.25, plot_acquisition=True,)
+                          #prob_cutoff=1e-6, beta=0., plot_acquisition=True,)

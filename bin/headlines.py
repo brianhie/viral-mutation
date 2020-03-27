@@ -1,11 +1,4 @@
-from utils import *
-
-from dateutil.parser import parse as dparse
-
-# Global variables.
-VOCABULARY = None
-START_INT = None
-END_INT = None
+from mutation import *
 
 np.random.seed(1)
 random.seed(1)
@@ -23,8 +16,10 @@ def parse_args():
                         help='Model checkpoint')
     parser.add_argument('--train', action='store_true',
                         help='Train model')
+    parser.add_argument('--train-split', action='store_true',
+                        help='Train model on portion of data')
     parser.add_argument('--test', action='store_true',
-                        help='Train model')
+                        help='Test model')
     parser.add_argument('--embed', action='store_true',
                         help='Analyze embeddings')
     parser.add_argument('--semantics', action='store_true',
@@ -53,69 +48,6 @@ def process(fnames):
                 seqs[seq].append(parse_meta(timestamp, headline))
     return seqs
 
-def err_model(name):
-    raise ValueError('Model {} not supported'.format(name))
-
-def get_model(args, seq_len, vocab_size,):
-    if args.model_name == 'hmm':
-        from hmmlearn.hmm import MultinomialHMM
-        model = MultinomialHMM(
-            n_components=16,
-            startprob_prior=1.0,
-            transmat_prior=1.0,
-            algorithm='viterbi',
-            random_state=1,
-            n_iter=100,
-            tol=0.01,
-            verbose=True,
-            params='ste',
-            init_params='ste'
-        )
-    elif args.model_name == 'lstm':
-        from lstm import LSTMLanguageModel
-        model = LSTMLanguageModel(
-            seq_len,
-            vocab_size,
-            embedding_dim=20,
-            hidden_dim=args.dim,
-            n_hidden=2,
-            n_epochs=20,
-            batch_size=1000,
-            cache_dir='target/{}'.format(args.namespace),
-            verbose=2,
-        )
-    elif args.model_name == 'bilstm':
-        from bilstm import BiLSTMLanguageModel
-        model = BiLSTMLanguageModel(
-            seq_len,
-            vocab_size,
-            embedding_dim=20,
-            hidden_dim=args.dim,
-            n_hidden=2,
-            n_epochs=20,
-            batch_size=1000,
-            cache_dir='target/{}'.format(args.namespace),
-            verbose=2,
-        )
-    elif args.model_name == 'bilstm-a':
-        from bilstm import BiLSTMLanguageModel
-        model = BiLSTMLanguageModel(
-            seq_len,
-            vocab_size,
-            attention=True,
-            embedding_dim=20,
-            hidden_dim=args.dim,
-            n_hidden=2,
-            n_epochs=20,
-            batch_size=1000,
-            cache_dir='target/{}'.format(args.namespace),
-            verbose=2,
-        )
-    else:
-        err_model(args.model_name)
-
-    return model
-
 def split_seqs(seqs, split_method='random'):
     train_seqs, val_seqs = {}, {}
 
@@ -135,126 +67,19 @@ def split_seqs(seqs, split_method='random'):
 
     return train_seqs, val_seqs
 
-def featurize_seqs(seqs):
-    global VOCABULARY, START_INT, END_INT
-    sorted_seqs = sorted(seqs.keys())
-    X = np.concatenate([
-        np.array([ START_INT ] + [
-            VOCABULARY[word] for word in seq
-        ] + [ END_INT ]) for seq in sorted_seqs
-    ]).reshape(-1, 1)
-    lens = np.array([ len(seq) + 2 for seq in sorted_seqs ])
-    assert(sum(lens) == X.shape[0])
-    return X, lens
-
-def fit_model(name, model, seqs):
-    X, lengths = featurize_seqs(seqs)
-
-    if name == 'hmm':
-        model.fit(X, lengths)
-    elif name == 'lstm':
-        model.fit(X, lengths)
-    elif name == 'bilstm':
-        model.fit(X, lengths)
-    elif name == 'bilstm-a':
-        model.fit(X, lengths)
-    else:
-        err_model(name)
-
-    return model
-
-def perplexity(logprob, n_samples):
-    return -logprob / n_samples
-
-def report_performance(model_name, model, train_seqs, test_seqs):
-    X_train, lengths_train = featurize_seqs(train_seqs)
-    logprob = model.score(X_train, lengths_train)
-    tprint('Model {}, train perplexity: {}'
-           .format(model_name, perplexity(logprob, len(lengths_train))))
-    X_test, lengths_test = featurize_seqs(test_seqs)
-    logprob = model.score(X_test, lengths_test)
-    tprint('Model {}, test perplexity: {}'
-           .format(model_name, perplexity(logprob, len(lengths_test))))
-
 def setup(args):
-    global VOCABULARY, START_INT, END_INT
-
     fnames = [ 'data/headlines/abcnews-date-text.csv' ]
 
     seqs = process(fnames)
 
     seq_len = max([ len(seq) for seq in seqs ]) + 2
-    VOCABULARY = sorted({ word for seq in seqs for word in seq })
-    VOCABULARY = { word: idx + 1 for idx, word in enumerate(VOCABULARY) }
-    START_INT = len(VOCABULARY) + 1
-    END_INT = len(VOCABULARY) + 2
-    vocab_size = len(VOCABULARY) + 2
+    vocabulary = sorted({ word for seq in seqs for word in seq })
+    vocabulary = { word: idx + 1 for idx, word in enumerate(vocabulary) }
+    vocab_size = len(vocabulary) + 2
 
     model = get_model(args, seq_len, vocab_size)
 
-    return model, seqs
-
-def train_test(args, model, seqs):
-    train_seqs, val_seqs = split_seqs(seqs)
-    if args.train:
-        model = fit_model(args.model_name, model, train_seqs)
-    if args.test:
-        report_performance(args.model_name, model, train_seqs, val_seqs)
-
-def load_hidden_model(args, model):
-    from keras.models import Model
-    if args.model_name == 'lstm':
-        layer_name = 'lstm_{}'.format(model.n_hidden_)
-    elif args.model_name == 'bilstm':
-        layer_name = 'concatenate_1'
-    else:
-        raise ValueError('No embedding support for model {}'
-                         .format(args.model_name))
-    hidden = Model(
-        inputs=model.model_.input,
-        outputs=model.model_.get_layer(layer_name).output
-    )
-    return hidden
-
-def embed_seqs(args, model, seqs, use_cache=True, verbose=True):
-    X_cat, lengths = featurize_seqs(seqs)
-
-    hidden = load_hidden_model(args, model)
-
-    if args.model_name == 'lstm':
-        from lstm import _iterate_lengths, _split_and_pad
-    elif args.model_name == 'bilstm':
-        from bilstm import _iterate_lengths, _split_and_pad
-    else:
-        raise ValueError('No embedding support for model {}'
-                         .format(args.model_name))
-
-    mkdir_p('target/{}/embedding'.format(args.namespace))
-    embed_fname = ('target/{}/embedding/{}_{}.npy'
-                   .format(args.namespace, args.model_name, args.dim))
-    if os.path.exists(embed_fname) and use_cache:
-        embed_cat = np.load(embed_fname)
-    else:
-        X = _split_and_pad(
-            X_cat, lengths,
-            model.seq_len_, model.vocab_size_, verbose
-        )[0]
-        if verbose:
-            tprint('Embedding...')
-        embed_cat = hidden.predict(X, batch_size=2500, verbose=verbose)
-        if use_cache:
-            np.save(embed_fname, embed_cat)
-        if verbose:
-            tprint('Done embedding.')
-
-    sorted_seqs = sorted(seqs)
-    for seq, (start, end) in zip(
-            sorted_seqs, _iterate_lengths(lengths, model.seq_len_)):
-        embedding = embed_cat[start:end]
-        for meta in seqs[seq]:
-            meta['embedding'] = embedding
-
-    return seqs
+    return model, seqs, vocabulary
 
 def interpret_clusters(adata):
     clusters = sorted(set(adata.obs['louvain']))
@@ -272,8 +97,9 @@ def plot_umap(adata):
     sc.pl.umap(adata, color='year', save='_year.png')
     sc.pl.umap(adata, color='date', save='_date.png')
 
-def analyze_embedding(args, model, seqs):
-    seqs = embed_seqs(args, model, seqs, use_cache=True)
+def analyze_embedding(args, model, seqs, vocabulary):
+    seqs = embed_seqs(args, model, seqs, vocabulary,
+                      use_cache=True)
 
     X, obs = [], {}
     obs['n_seq'] = []
@@ -305,12 +131,12 @@ def analyze_embedding(args, model, seqs):
 
     interpret_clusters(adata)
 
-def analyze_semantics(args, model, seq_to_mutate, verbose=False,
+def analyze_semantics(args, model, seq_to_mutate, vocabulary,
                       prob_cutoff=1e-4, n_most_probable=100, beta=1.,
-                      plot_acquisition=False):
+                      plot_acquisition=False, verbose=False):
     seq_to_mutate = tuple(seq_to_mutate)
     seqs = { seq_to_mutate: [ {} ] }
-    X_cat, lengths = featurize_seqs(seqs)
+    X_cat, lengths = featurize_seqs(seqs, vocabulary)
 
     if args.model_name == 'lstm':
         from lstm import _split_and_pad
@@ -324,12 +150,12 @@ def analyze_semantics(args, model, seq_to_mutate, verbose=False,
                        model.vocab_size_, False)[0]
     y_pred = model.model_.predict(X, batch_size=2500)
     assert(y_pred.shape[0] == len(seq_to_mutate) + 2)
-    assert(y_pred.shape[1] == len(VOCABULARY) + 3)
+    assert(y_pred.shape[1] == len(vocabulary) + 3)
 
     word_pos_prob = {}
     for i in range(len(seq_to_mutate)):
-        for word in VOCABULARY:
-            word_idx = VOCABULARY[word]
+        for word in vocabulary:
+            word_idx = vocabulary[word]
             prob = y_pred[i + 1, word_idx]
             if prob < prob_cutoff:
                 continue
@@ -344,7 +170,7 @@ def analyze_semantics(args, model, seq_to_mutate, verbose=False,
         prob_seqs[tuple(mutable)] = [ {} ]
         seq_prob[tuple(mutable)] = prob
 
-    prob_seqs = embed_seqs(args, model, prob_seqs,
+    prob_seqs = embed_seqs(args, model, prob_seqs, vocabulary,
                            use_cache=False, verbose=verbose)
     base_embedding = prob_seqs[seq_to_mutate][0]['embedding']
     seq_change = {}
@@ -392,15 +218,15 @@ def analyze_semantics(args, model, seq_to_mutate, verbose=False,
 if __name__ == '__main__':
     args = parse_args()
 
-    model, seqs = setup(args)
+    model, seqs, vocabulary = setup(args)
 
     if args.checkpoint is not None:
         model.model_.load_weights(args.checkpoint)
         tprint('Model summary:')
         print(model.model_.summary())
 
-    if args.train or args.test:
-        train_test(args, model, seqs)
+    if args.train or args.train_split or args.test:
+        train_test(args, model, seqs, vocabulary)
 
     if args.embed:
         if args.checkpoint is None and not args.train:
@@ -410,7 +236,7 @@ if __name__ == '__main__':
         if args.model_name in no_embed:
             raise ValueError('Embeddings not available for models: {}'
                              .format(', '.join(no_embed)))
-        analyze_embedding(args, model, seqs)
+        analyze_embedding(args, model, seqs, vocabulary)
 
     if args.semantics:
         if args.checkpoint is None and not args.train:
@@ -422,4 +248,4 @@ if __name__ == '__main__':
         for headline in random_sample:
             tprint('')
             analyze_semantics(args, model, headline.split(' '),
-                              n_most_probable=5, beta=0.25)
+                              vocabulary, n_most_probable=5, beta=0.25)
