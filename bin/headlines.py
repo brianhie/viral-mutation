@@ -67,19 +67,12 @@ def split_seqs(seqs, split_method='random'):
 
     return train_seqs, val_seqs
 
-def setup(args):
+def setup():
     fnames = [ 'data/headlines/abcnews-date-text.csv' ]
-
     seqs = process(fnames)
-
-    seq_len = max([ len(seq) for seq in seqs ]) + 2
     vocabulary = sorted({ word for seq in seqs for word in seq })
     vocabulary = { word: idx + 1 for idx, word in enumerate(vocabulary) }
-    vocab_size = len(vocabulary) + 2
-
-    model = get_model(args, seq_len, vocab_size)
-
-    return model, seqs, vocabulary
+    return seqs, vocabulary
 
 def interpret_clusters(adata):
     clusters = sorted(set(adata.obs['louvain']))
@@ -161,10 +154,9 @@ def analyze_semantics(args, model, seq_to_mutate, vocabulary,
                 continue
             word_pos_prob[(word, i)] = prob
 
-    prob_sorted = sorted(word_pos_prob.items(), key=lambda x: -x[1])
     prob_seqs = { seq_to_mutate: [ {} ] }
     seq_prob = {}
-    for (word, pos), prob in prob_sorted:
+    for (word, pos), prob in word_pos_prob.items():
         mutable = list(seq_to_mutate)
         mutable[pos] = word
         prob_seqs[tuple(mutable)] = [ {} ]
@@ -179,12 +171,10 @@ def analyze_semantics(args, model, seq_to_mutate, vocabulary,
         # L1 distance between embedding vectors.
         seq_change[seq] = abs(base_embedding - embedding).sum()
 
-    seq_prob_sorted = sorted(seq_prob.items(), key=lambda x: -x[1])
-    seq_change_sorted = sorted(seq_change.items(), key=lambda x: -x[1])
-
-    headlines = np.array([ ' '.join(seq) for seq in sorted(seq_prob.keys()) ])
-    prob = np.array([ seq_prob[seq] for seq in sorted(seq_prob.keys()) ])
-    change = np.array([ seq_change[seq] for seq in sorted(seq_change.keys()) ])
+    sorted_seqs = sorted(seq_prob.keys())
+    headlines = np.array([ ' '.join(seq) for seq in sorted_seqs ])
+    prob = np.array([ seq_prob[seq] for seq in sorted_seqs ])
+    change = np.array([ seq_change[seq] for seq in sorted_seqs ])
     acquisition = ss.rankdata(change) + (beta * ss.rankdata(prob))
 
     if plot_acquisition:
@@ -204,13 +194,13 @@ def analyze_semantics(args, model, seq_to_mutate, vocabulary,
         tprint('{}: {} (change), {} (prob)'.format(
             headlines[idx], change[idx], prob[idx]
         ))
-    tprint('Most probable:')
-    for idx in np.argsort(-prob)[:n_most_probable]:
+    tprint('Least change:')
+    for idx in np.argsort(change)[:n_most_probable]:
         tprint('{}: {} (change), {} (prob)'.format(
             headlines[idx], change[idx], prob[idx]
         ))
-    tprint('Closest:')
-    for idx in np.argsort(change)[:n_most_probable]:
+    tprint('Most change:')
+    for idx in np.argsort(-change)[:n_most_probable]:
         tprint('{}: {} (change), {} (prob)'.format(
             headlines[idx], change[idx], prob[idx]
         ))
@@ -218,7 +208,10 @@ def analyze_semantics(args, model, seq_to_mutate, vocabulary,
 if __name__ == '__main__':
     args = parse_args()
 
-    model, seqs, vocabulary = setup(args)
+    seqs, vocabulary = setup()
+    seq_len = max([ len(seq) for seq in seqs ]) + 2
+    vocab_size = len(vocabulary) + 2
+    model = get_model(args, seq_len, vocab_size)
 
     if args.checkpoint is not None:
         model.model_.load_weights(args.checkpoint)
@@ -226,7 +219,7 @@ if __name__ == '__main__':
         print(model.model_.summary())
 
     if args.train or args.train_split or args.test:
-        train_test(args, model, seqs, vocabulary)
+        train_test(args, model, seqs, vocabulary, split_seqs)
 
     if args.embed:
         if args.checkpoint is None and not args.train:
@@ -243,9 +236,12 @@ if __name__ == '__main__':
             raise ValueError('Model must be trained or loaded '
                              'from checkpoint.')
         random_sample = np.random.choice(
-            [ ' '.join(seq) for seq in seqs ], 100
+            [ ' '.join(seq) for seq in seqs ], 100000
         )
-        for headline in random_sample:
+        #headlines = sorted([ ' '.join(seq) for seq in seqs ])
+        for headline in random_sample[50000:]:#headlines:
             tprint('')
             analyze_semantics(args, model, headline.split(' '),
-                              vocabulary, n_most_probable=5, beta=0.25)
+                              vocabulary, n_most_probable=3,
+                              prob_cutoff=1e-4, beta=0.25)
+                              #prob_cutoff=1e-10, beta=1.)

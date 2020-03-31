@@ -106,7 +106,7 @@ def report_performance(model_name, model, vocabulary,
     tprint('Model {}, test perplexity: {}'
            .format(model_name, perplexity(logprob, len(lengths_test))))
 
-def train_test(args, model, seqs, vocabulary):
+def train_test(args, model, seqs, vocabulary, split_seqs=None):
     if args.train and args.train_split:
         raise ValueError('Training on full and split data is invalid.')
 
@@ -114,7 +114,10 @@ def train_test(args, model, seqs, vocabulary):
         model = fit_model(args.model_name, model, seqs, vocabulary)
         return
 
+    if split_seqs is None:
+        raise ValueError('Must provide function to split train/test.')
     train_seqs, val_seqs = split_seqs(seqs)
+
     if args.train_split:
         model = fit_model(args.model_name, model, train_seqs, vocabulary)
     if args.test:

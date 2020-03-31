@@ -8,10 +8,10 @@ random.seed(1)
 
 def parse_args():
     import argparse
-    parser = argparse.ArgumentParser(description='Flu sequence analysis')
+    parser = argparse.ArgumentParser(description='HIV sequence analysis')
     parser.add_argument('model_name', type=str,
                         help='Type of language model (e.g., hmm, lstm)')
-    parser.add_argument('--namespace', type=str, default='flu',
+    parser.add_argument('--namespace', type=str, default='hiv',
                         help='Model namespace')
     parser.add_argument('--checkpoint', type=str, default=None,
                         help='Model checkpoint')
@@ -34,22 +34,21 @@ def load_meta(meta_fnames):
     metas = {}
     for fname in meta_fnames:
         with open(fname) as f:
-            header = f.readline().rstrip().split('\t')
             for line in f:
-                fields = line.rstrip().split('\t')
-                accession = fields[1]
-                meta = {}
-                for key, value in zip(header, fields):
-                    if key == 'Subtype':
-                        meta[key] = value.strip('()').split('N')[0].split('/')[-1]
-                    elif key == 'Collection Date':
-                        meta[key] = int(value.split('/')[-1]) \
-                                    if value != '-N/A-' else None
-                    elif key == 'Host Species':
-                        meta[key] = value.split(':')[1].split('/')[-1].lower()
-                    else:
-                        meta[key] = value
-                metas[accession] = meta
+                if not line.startswith('>'):
+                    continue
+                accession = line[1:].rstrip()
+                fields = line.rstrip().split('.')
+                country, year, strain = fields[1], fields[2], fields[3]
+                if year == '-':
+                    year = None
+                else:
+                    year = int(year)
+                metas[accession] = {
+                    'country': country,
+                    'year': year,
+                    'strain': strain,
+                }
     return metas
 
 def process(fnames, meta_fnames):
@@ -60,25 +59,28 @@ def process(fnames, meta_fnames):
         for record in SeqIO.parse(fname, 'fasta'):
             if record.seq not in seqs:
                 seqs[record.seq] = []
-            accession = record.description.split('|')[0].split(':')[1]
-            seqs[record.seq].append(metas[accession])
+            accession = record.description
+            meta = metas[accession]
+            if meta['year'] is None:
+                continue
+            seqs[record.seq].append(meta)
     return seqs
 
 def split_seqs(seqs, split_method='random'):
     with warnings.catch_warnings():
         warnings.simplefilter('ignore', BiopythonWarning)
 
-        train_seqs, test_seqs, val_seqs = {}, {}, {}
+        train_seqs, test_seqs = {}, {}
 
-        old_cutoff = 1970
-        new_cutoff = 2019
+        old_cutoff = 1900
+        new_cutoff = 2000
 
         tprint('Splitting seqs...')
         for seq in seqs:
             # Pick validation set based on date.
             seq_dates = [
-                meta['Collection Date'] for meta in seqs[seq]
-                if meta['Collection Date'] is not None
+                meta['year'] for meta in seqs[seq]
+                if meta['year'] is not None
             ]
             if len(seq_dates) > 0:
                 oldest_date = sorted(seq_dates)[0]
@@ -91,8 +93,8 @@ def split_seqs(seqs, split_method='random'):
     return train_seqs, test_seqs
 
 def setup(args):
-    fnames = [ 'data/influenza/ird_influenzaA_HA_allspecies.fa' ]
-    meta_fnames = [ 'data/influenza/ird_influenzaA_HA_allspecies_meta.tsv' ]
+    fnames = [ 'data/hiv/HIV-1_env.fa' ]
+    meta_fnames = [ 'data/hiv/HIV-1_env.fa' ]
 
     with warnings.catch_warnings():
         warnings.simplefilter('ignore', BiopythonWarning)
@@ -110,8 +112,7 @@ def interpret_clusters(adata):
     for cluster in clusters:
         tprint('Cluster {}'.format(cluster))
         adata_cluster = adata[adata.obs['louvain'] == cluster]
-        for var in [ 'Collection Date', 'Country', 'Subtype',
-                     'Flu Season', 'Host Species', 'Strain Name' ]:
+        for var in [ 'year', 'country', 'strain' ]:
             tprint('\t{}:'.format(var))
             counts = Counter(adata_cluster.obs[var])
             for val, count in counts.most_common():
@@ -128,61 +129,14 @@ def seq_clusters(adata):
                 of.write('>cluster{}_{}_{}\n'.format(cluster, i, count))
                 of.write(seq + '\n\n')
 
-def plot_composition(adata, var):
-    years = sorted(set(adata.obs['Collection Date']))
-    vals = sorted(set(adata.obs[var]))
-
-    comps = [ [] for val in vals ]
-    norms = [ [] for val in vals ]
-    for year in years:
-        adata_year = adata[adata.obs['Collection Date'] == year]
-        val_count = { val: 0 for val in vals }
-        for n_seq, val in zip(adata_year.obs['n_seq'], adata_year.obs[var]):
-            val_count[val] += n_seq
-        comp = np.array([ val_count[val] for val in vals ], dtype=float)
-        comp_sum = float(np.sum(comp))
-        for i in range(len(comp)):
-            comps[i].append(comp[i])
-            norms[i].append(comp[i] / comp_sum)
-
-    x = np.array(range(len(years)))
-    plt.figure(figsize=(40, 10))
-    plt.stackplot(x, norms, labels=vals)
-    plt.xticks(x, [ str(year) for year in years ], rotation=45)
-    plt.legend()
-    plt.grid(b=None)
-    plt.savefig('figures/plot_composition_{}.png'.format(var), dpi=500)
-
-    plt.figure(figsize=(10, 40))
-    for i in range(len(vals)):
-        plt.subplot(len(vals), 1, i + 1)
-        plt.title(str(vals[i]))
-        plt.fill_between(x, comps[i], 0)
-        if i == len(vals) - 1:
-            plt.xticks(x, [ str(year) for year in years ], rotation=45)
-        plt.grid(b=None)
-    plt.savefig('figures/plot_composition_separate_{}.png'
-                .format(var), dpi=500)
-
 def plot_umap(adata):
     sc.tl.umap(adata, min_dist=1.)
-    sc.pl.umap(adata, color='Host Species', save='_species.png')
-    sc.pl.umap(adata, color='Subtype', save='_subtype.png')
-    sc.pl.umap(adata, color='Collection Date', save='_date.png')
+    sc.pl.umap(adata, color='year', save='_year.png')
+    sc.pl.umap(adata, color='country', save='_country.png')
+    sc.pl.umap(adata, color='strain', save='_strain.png')
     sc.pl.umap(adata, color='louvain', save='_louvain.png')
     sc.pl.umap(adata, color='n_seq', save='_number.png',
                s=np.log(np.array(adata.obs['n_seq']) * 100) + 1)
-
-def plot_umap_time(adata):
-    sc.pp.neighbors(adata, n_neighbors=100, use_rep='X')
-    sc.tl.umap(adata, min_dist=0.1, n_components=1)
-    adata.obsm['X_umap'] = np.hstack([
-        np.array(adata.obs['Collection Date']).reshape(-1, 1),
-        adata.obsm['X_umap']
-    ])
-    sc.pl.umap(adata, color='Host Species', save='_time_species.png')
-    sc.pl.umap(adata, color='Subtype', save='_time_subtype.png')
-    sc.pl.umap(adata, color='louvain', save='_time_louvain.png')
 
 def analyze_embedding(args, model, seqs, vocabulary):
     seqs = embed_seqs(args, model, seqs, vocabulary)
@@ -208,13 +162,6 @@ def analyze_embedding(args, model, seqs, vocabulary):
     adata = AnnData(X)
     for key in obs:
         adata.obs[key] = obs[key]
-    adata = adata[
-        np.logical_or.reduce((
-            adata.obs['Host Species'] == 'human',
-            adata.obs['Host Species'] == 'avian',
-            adata.obs['Host Species'] == 'swine',
-        ))
-    ]
 
     sc.pp.neighbors(adata, n_neighbors=100, use_rep='X')
     sc.tl.louvain(adata, resolution=1.)
@@ -222,17 +169,11 @@ def analyze_embedding(args, model, seqs, vocabulary):
     sc.set_figure_params(dpi_save=500)
     plot_umap(adata)
 
-    adata_human = adata[adata.obs['Host Species'] == 'human']
-    plot_composition(adata_human, 'louvain')
-    plot_composition(adata_human, 'Subtype')
-    plot_umap_time(adata_human)
-
     interpret_clusters(adata)
     #seq_clusters(adata)
 
 def analyze_semantics(args, model, vocabulary, seq_to_mutate, escape_seqs,
-                      prob_cutoff=1e-4, beta=1., plot_acquisition=False,
-                      verbose=False):
+                      prob_cutoff=0, beta=1., verbose=False):
     seqs = { seq_to_mutate: [ {} ] }
     X_cat, lengths = featurize_seqs(seqs, vocabulary)
 
@@ -248,7 +189,7 @@ def analyze_semantics(args, model, vocabulary, seq_to_mutate, escape_seqs,
                        model.vocab_size_, verbose)[0]
     y_pred = model.model_.predict(X, batch_size=2500)
     assert(y_pred.shape[0] == len(seq_to_mutate) + 2)
-    #assert(y_pred.shape[1] == len(AAs) + 3)
+    assert(y_pred.shape[1] == len(AAs) + 3)
 
     word_pos_prob = {}
     for i in range(len(seq_to_mutate)):
@@ -280,22 +221,10 @@ def analyze_semantics(args, model, vocabulary, seq_to_mutate, escape_seqs,
     prob = np.array([ seq_prob[seq] for seq in seqs ])
     change = np.array([ seq_change[seq] for seq in seqs ])
 
-    escape_idx = np.array([
-        ((seq in escape_seqs) and
-         (sum([ m['significant'] for m in escape_seqs[seq] ]) > 0))
-        for seq in seqs
-    ])
-    viable_idx = np.array([ seq in escape_seqs for seq in seqs ])
-
-    dirname = 'target/flu/semantics/cache'
+    dirname = 'target/hiv/semantics/cache'
     mkdir_p(dirname)
     cache_fname = dirname + '/plot.npz'
-    np.savez_compressed(
-        cache_fname, prob, change, escape_idx, viable_idx,
-    )
-    from cached_semantics import cached_escape_semantics
-    cached_escape_semantics(cache_fname, beta,
-                            plot=plot_acquisition)
+    np.savez_compressed(cache_fname, prob, change)
 
 if __name__ == '__main__':
     args = parse_args()
@@ -303,7 +232,7 @@ if __name__ == '__main__':
     AAs = [
         'A', 'R', 'N', 'D', 'C', 'Q', 'E', 'G', 'H',
         'I', 'L', 'K', 'M', 'F', 'P', 'S', 'T', 'W',
-        'Y', 'V', 'X', 'Z', 'J', 'U', 'B', 'Z'
+        'Y', 'V', 'X', 'Z', 'J', 'U', 'B',
     ]
     vocabulary = { aa: idx + 1 for idx, aa in enumerate(sorted(AAs)) }
 
@@ -331,17 +260,4 @@ if __name__ == '__main__':
         if args.checkpoint is None and not args.train:
             raise ValueError('Model must be trained or loaded '
                              'from checkpoint.')
-
-        from escape import load_lee2018, load_lee2019
-
-        #tprint('Lee et al. 2018...')
-        #seq_to_mutate, escape_seqs = load_lee2018()
-        #analyze_semantics(args, model, vocabulary, seq_to_mutate, escape_seqs,
-        #                  prob_cutoff=1e-6, beta=0.,)
-        #tprint('')
-
-        tprint('Lee et al. 2019...')
-        seq_to_mutate, escape_seqs = load_lee2019()
-        analyze_semantics(args, model, vocabulary, seq_to_mutate, escape_seqs,
-                          prob_cutoff=0., beta=0.25, plot_acquisition=True,)
-                          #prob_cutoff=1e-6, beta=0., plot_acquisition=True,)
+        raise NotImplementedError()

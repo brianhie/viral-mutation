@@ -1,10 +1,13 @@
 from utils import *
 
+from sklearn.metrics import auc
+
 def cached_escape_semantics(cache_fname, beta, plot=True):
     data = np.load(cache_fname)
     prob = data['arr_0']
     change = data['arr_1']
     escape_idx = data['arr_2']
+    viable_idx = data['arr_3']
 
     acquisition = ss.rankdata(change) + (beta * ss.rankdata(prob))
 
@@ -25,8 +28,8 @@ def cached_escape_semantics(cache_fname, beta, plot=True):
                     cmap='viridis', alpha=0.3)
         plt.scatter(log_escape_prob, log_escape_change, c='red',
                     alpha=0.5, marker='x')
-        plt.xlabel('$ \log_{10}(p(x_i)) $')
-        plt.ylabel('$ \log_{10}(\Delta \Theta) $')
+        plt.xlabel(r'$ \log_{10}(p(x_i)) $')
+        plt.ylabel(r'$ \log_{10}(\Delta \Theta) $')
         plt.savefig('figures/flu_acquisition.png', dpi=300)
         plt.close()
 
@@ -36,8 +39,8 @@ def cached_escape_semantics(cache_fname, beta, plot=True):
                     cmap='viridis', alpha=0.3)
         plt.scatter(log_prob[rand_idx], log_change[rand_idx], c='red',
                     alpha=0.5, marker='x')
-        plt.xlabel('$ \log_{10}(p(x_i)) $')
-        plt.ylabel('$ \log_{10}(\Delta \Theta) $')
+        plt.xlabel(r'$ \log_{10}(p(x_i)) $')
+        plt.ylabel(r'$ \log_{10}(\Delta \Theta) $')
         plt.savefig('figures/flu_acquisition_rand.png', dpi=300)
         plt.close()
 
@@ -52,6 +55,45 @@ def cached_escape_semantics(cache_fname, beta, plot=True):
     print('Min rank: {} / {}'.format(np.min(escape_rank_dist), size))
     print('Max rank: {} / {}'.format(np.max(escape_rank_dist), size))
     print('Rank stdev: {} / {}'.format(np.std(escape_rank_dist), size))
+
+    if plot:
+        max_consider = len(prob)
+        n_consider = np.array([ i + 1 for i in range(max_consider) ])
+
+        n_escape = np.array([ sum(escape_rank_dist <= i + 1)
+                              for i in range(max_consider) ])
+        norm = max(n_consider) * max(n_escape)
+        norm_auc = auc(n_consider, n_escape) / norm
+
+
+        escape_rank_prob = ss.rankdata(-data['arr_0'])[escape_idx]
+        n_escape_prob = np.array([ sum(escape_rank_prob <= i + 1)
+                                   for i in range(max_consider) ])
+        norm_auc_prob = auc(n_consider, n_escape_prob) / norm
+
+        escape_rank_change = ss.rankdata(-data['arr_1'])[escape_idx]
+        n_escape_change = np.array([ sum(escape_rank_change <= i + 1)
+                                     for i in range(max_consider) ])
+        norm_auc_change = auc(n_consider, n_escape_change) / norm
+
+        escape_frac = len(escape_prob) / len(prob)
+
+        plt.figure()
+        plt.plot(n_consider, n_escape)
+        plt.plot(n_consider, n_escape_change, c='C0', linestyle='-.')
+        plt.plot(n_consider, n_escape_prob, c='C0', linestyle=':')
+        plt.plot(n_consider, n_consider * escape_frac,
+                 c='gray', linestyle='--')
+        plt.legend([
+            r'$ \Delta \Theta + \beta p(x_i)$, AUC = {:.3f}'.format(norm_auc),
+            r'$ \Delta \Theta $ only, AUC = {:.3f}'.format(norm_auc_change),
+            r'$ p(x_i) $ only, AUC = {:.3f}'.format(norm_auc_prob),
+            'Random guessing, AUC = 0.500'
+        ])
+        plt.xlabel('Top N')
+        plt.ylabel('Number of escape mutations in top N')
+        plt.savefig('figures/flu_consider_escape.png', dpi=300)
+        plt.close()
 
     print('{:.4g} (mean log prob), {:.4g} (mean log prob escape), '
           '{:.4g} (p-value)'

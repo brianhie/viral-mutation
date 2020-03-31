@@ -8,6 +8,7 @@ import numpy as np
 import os
 import random
 import scanpy as sc
+from scipy.sparse import csr_matrix, dok_matrix
 import scipy.stats as ss
 import seaborn as sns
 import sys

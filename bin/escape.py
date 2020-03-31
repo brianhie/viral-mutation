@@ -55,8 +55,6 @@ def load_lee2019():
         for line in f:
             fields = line.rstrip().split(',')
             significant = fields[14] == 'True'
-            if not significant:
-                continue
             pos = int(fields[13])
             assert(seq[pos] == fields[5])
             escaped = seq[:pos] + fields[6] + seq[pos + 1:]
@@ -75,6 +73,7 @@ def load_lee2019():
                 'abs_diff_selection': float(fields[11]),
                 'antibody': fields[1],
                 'species': species,
+                'significant': significant,
             })
 
     return seq, seqs_escape
