@@ -27,9 +27,9 @@ def load_lee2018(survival_cutoff=0.05):
             for line in f:
                 fields = line.rstrip().split(',')
                 frac_survived = float(fields[3])
-                if frac_survived < survival_cutoff:
-                    continue
                 pos = pos_map[fields[0]]
+                if seq[pos] != fields[1]:
+                    print((seq[pos], fields[1], pos))
                 assert(seq[pos] == fields[1])
                 escaped = seq[:pos] + fields[2] + seq[pos + 1:]
                 assert(len(seq) == len(escaped))
@@ -38,6 +38,7 @@ def load_lee2018(survival_cutoff=0.05):
                 seqs_escape[escaped].append({
                     'frac_survived': frac_survived,
                     'antibody': antibody,
+                    'significant': frac_survived < survival_cutoff,
                 })
 
     return seq, seqs_escape
@@ -77,3 +78,49 @@ def load_lee2019():
             })
 
     return seq, seqs_escape
+
+def load_dingens2019(survival_cutoff=0.05):
+    pos_map = {}
+    with open('data/hiv/escape_dingens2019/BG505_to_HXB2.csv') as f:
+        f.readline() # Consume header.
+        for line in f:
+           fields = line.rstrip().split(',')
+           pos_map[fields[1]] = int(fields[0]) - 1
+
+    fname = 'data/hiv/escape_dingens2019/Env_protalign_manualeditAD.fasta'
+    for record in SeqIO.parse(fname, 'fasta'):
+        if record.description == 'BG505':
+            seq = record.seq
+            break
+
+    seqs_escape = {}
+    antibodies = [
+        '101074', '10E8', '3BNC117-101074-pool', '3BNC117', 'PG9',
+        'PGT121', 'PGT145', 'PGT151', 'VRC01', 'VRC34',
+    ]
+    for antibody in antibodies:
+        fname = ('data/hiv/escape_dingens2019/FileS4/'
+                 'fracsurviveaboveavg/{}.csv'.format(antibody))
+        with open(fname) as f:
+            f.readline() # Consume header.
+            for line in f:
+                fields = line.rstrip().split(',')
+                frac_survived = float(fields[3])
+                pos = pos_map[fields[0]]
+                assert(seq[pos] == fields[1])
+                escaped = seq[:pos] + fields[2] + seq[pos + 1:]
+                assert(len(seq) == len(escaped))
+                if escaped not in seqs_escape:
+                    seqs_escape[escaped] = []
+                seqs_escape[escaped].append({
+                    'frac_survived': frac_survived,
+                    'antibody': antibody,
+                    'significant': frac_survived < survival_cutoff,
+                })
+
+    return seq, seqs_escape
+
+if __name__ == '__main__':
+    load_lee2018()
+    load_lee2019()
+    load_dingens2019()

@@ -4,10 +4,10 @@ from sklearn.metrics import auc
 
 def cached_escape_semantics(cache_fname, beta, plot=True):
     data = np.load(cache_fname)
-    prob = data['arr_0']
-    change = data['arr_1']
-    escape_idx = data['arr_2']
-    viable_idx = data['arr_3']
+    prob = data['prob']
+    change = data['change']
+    escape_idx = data['escape_idx']
+    viable_idx = data['viable_idx']
 
     acquisition = ss.rankdata(change) + (beta * ss.rankdata(prob))
 
@@ -66,12 +66,12 @@ def cached_escape_semantics(cache_fname, beta, plot=True):
         norm_auc = auc(n_consider, n_escape) / norm
 
 
-        escape_rank_prob = ss.rankdata(-data['arr_0'])[escape_idx]
+        escape_rank_prob = ss.rankdata(-data['prob'])[escape_idx]
         n_escape_prob = np.array([ sum(escape_rank_prob <= i + 1)
                                    for i in range(max_consider) ])
         norm_auc_prob = auc(n_consider, n_escape_prob) / norm
 
-        escape_rank_change = ss.rankdata(-data['arr_1'])[escape_idx]
+        escape_rank_change = ss.rankdata(-data['change'])[escape_idx]
         n_escape_change = np.array([ sum(escape_rank_change <= i + 1)
                                      for i in range(max_consider) ])
         norm_auc_change = auc(n_consider, n_escape_change) / norm

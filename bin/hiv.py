@@ -61,8 +61,6 @@ def process(fnames, meta_fnames):
                 seqs[record.seq] = []
             accession = record.description
             meta = metas[accession]
-            if meta['year'] is None:
-                continue
             seqs[record.seq].append(meta)
     return seqs
 
@@ -73,7 +71,7 @@ def split_seqs(seqs, split_method='random'):
         train_seqs, test_seqs = {}, {}
 
         old_cutoff = 1900
-        new_cutoff = 2000
+        new_cutoff = 2006
 
         tprint('Splitting seqs...')
         for seq in seqs:
@@ -82,13 +80,17 @@ def split_seqs(seqs, split_method='random'):
                 meta['year'] for meta in seqs[seq]
                 if meta['year'] is not None
             ]
+            if len(seq_dates) == 0:
+                test_seqs[seq] = seqs[seq]
+                continue
             if len(seq_dates) > 0:
                 oldest_date = sorted(seq_dates)[0]
                 if oldest_date < old_cutoff or oldest_date >= new_cutoff:
                     test_seqs[seq] = seqs[seq]
                     continue
             train_seqs[seq] = seqs[seq]
-        tprint('Done.')
+        tprint('{} train seqs, {} test seqs.'
+               .format(len(train_seqs), len(test_seqs)))
 
     return train_seqs, test_seqs
 

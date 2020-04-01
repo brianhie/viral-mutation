@@ -70,8 +70,8 @@ def split_seqs(seqs, split_method='random'):
 
         train_seqs, test_seqs, val_seqs = {}, {}, {}
 
-        old_cutoff = 1970
-        new_cutoff = 2019
+        old_cutoff = 1990
+        new_cutoff = 2018
 
         tprint('Splitting seqs...')
         for seq in seqs:
@@ -86,7 +86,8 @@ def split_seqs(seqs, split_method='random'):
                     test_seqs[seq] = seqs[seq]
                     continue
             train_seqs[seq] = seqs[seq]
-        tprint('Done.')
+        tprint('{} train seqs, {} test seqs.'
+               .format(len(train_seqs), len(test_seqs)))
 
     return train_seqs, test_seqs
 
@@ -291,7 +292,8 @@ def analyze_semantics(args, model, vocabulary, seq_to_mutate, escape_seqs,
     mkdir_p(dirname)
     cache_fname = dirname + '/plot.npz'
     np.savez_compressed(
-        cache_fname, prob, change, escape_idx, viable_idx,
+        cache_fname, prob=prob, change=change,
+        escape_idx=escape_idx, viable_idx=viable_idx,
     )
     from cached_semantics import cached_escape_semantics
     cached_escape_semantics(cache_fname, beta,
@@ -343,5 +345,4 @@ if __name__ == '__main__':
         tprint('Lee et al. 2019...')
         seq_to_mutate, escape_seqs = load_lee2019()
         analyze_semantics(args, model, vocabulary, seq_to_mutate, escape_seqs,
-                          prob_cutoff=0., beta=0.25, plot_acquisition=True,)
-                          #prob_cutoff=1e-6, beta=0., plot_acquisition=True,)
+                          prob_cutoff=0., beta=1., plot_acquisition=True,)

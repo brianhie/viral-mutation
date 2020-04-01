@@ -7,7 +7,7 @@ def get_model(args, seq_len, vocab_size,):
     if args.model_name == 'hmm':
         from hmmlearn.hmm import MultinomialHMM
         model = MultinomialHMM(
-            n_components=16,
+            n_components=args.dim,
             startprob_prior=1.0,
             transmat_prior=1.0,
             algorithm='viterbi',
@@ -92,19 +92,19 @@ def fit_model(name, model, seqs, vocabulary):
 
     return model
 
-def perplexity(logprob, n_samples):
+def cross_entropy(logprob, n_samples):
     return -logprob / n_samples
 
 def report_performance(model_name, model, vocabulary,
                        train_seqs, test_seqs):
     X_train, lengths_train = featurize_seqs(train_seqs, vocabulary)
     logprob = model.score(X_train, lengths_train)
-    tprint('Model {}, train perplexity: {}'
-           .format(model_name, perplexity(logprob, len(lengths_train))))
+    tprint('Model {}, train cross entropy: {}'
+           .format(model_name, cross_entropy(logprob, len(lengths_train))))
     X_test, lengths_test = featurize_seqs(test_seqs, vocabulary)
     logprob = model.score(X_test, lengths_test)
-    tprint('Model {}, test perplexity: {}'
-           .format(model_name, perplexity(logprob, len(lengths_test))))
+    tprint('Model {}, test cross entropy: {}'
+           .format(model_name, cross_entropy(logprob, len(lengths_test))))
 
 def train_test(args, model, seqs, vocabulary, split_seqs=None):
     if args.train and args.train_split:

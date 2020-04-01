@@ -3,6 +3,7 @@ from utils import *
 import tensorflow as tf
 tf.set_random_seed(1)
 
+from keras import backend as K
 from keras.callbacks.callbacks import ModelCheckpoint
 from keras.layers import Dense, Embedding, LSTM
 from keras.models import Sequential
@@ -59,6 +60,10 @@ class LSTMLanguageModel(object):
             cache_dir='.',
             verbose=False
     ):
+        config = tf.ConfigProto()
+        config.gpu_options.allow_growth = True
+        K.tensorflow_backend.set_session(tf.Session(config=config))
+
         model = Sequential()
         model.add(Embedding(vocab_size + 1, embedding_dim,
                             input_length=seq_len - 1))
@@ -109,10 +114,19 @@ class LSTMLanguageModel(object):
         X, y_true = _split_and_pad(
             X_cat, lengths, self.seq_len_, self.vocab_size_, self.verbose_
         )
-        y_pred = self.model_.predict(X, verbose=self.verbose_ > 0,
-                                     batch_size=self.batch_size_)
 
-        prob = y_pred[y_true == 1.].flatten()
-        with np.errstate(divide='ignore'):
-            logprob = np.log(prob)
-        return np.sum(logprob)
+        opt = Adam(learning_rate=0.001, beta_1=0.9, beta_2=0.999,
+                   amsgrad=False)
+        self.model_.compile(
+            loss='sparse_categorical_crossentropy', optimizer=opt,
+            metrics=[ 'accuracy' ]
+        )
+
+        metrics = self.model_.evaluate(X, y_true, verbose=self.verbose_ > 0,
+                                       batch_size=self.batch_size_)
+
+        for val, metric in zip(metrics, self.model_.metrics_names):
+            if self.verbose_:
+                tprint('Metric {}: {}'.format(metric, val))
+
+        return metrics[self.model_.metrics_names.index('loss')] * -len(lengths)

@@ -49,7 +49,6 @@ class BiLSTMLanguageModel(object):
             self,
             seq_len,
             vocab_size,
-            attention=False,
             embedding_dim=20,
             hidden_dim=256,
             n_hidden=2,
@@ -58,6 +57,10 @@ class BiLSTMLanguageModel(object):
             cache_dir='.',
             verbose=False
     ):
+        config = tf.ConfigProto()
+        config.gpu_options.allow_growth = True
+        K.tensorflow_backend.set_session(tf.Session(config=config))
+
         input_pre = Input(shape=(seq_len - 1,))
         input_post = Input(shape=(seq_len - 1,))
 
@@ -70,15 +73,11 @@ class BiLSTMLanguageModel(object):
             lstm = LSTM(hidden_dim, return_sequences=True)
             x_pre = lstm(x_pre)
             x_post = lstm(x_post)
-        lstm = LSTM(hidden_dim, return_sequences=attention)
+        lstm = LSTM(hidden_dim)
         x_pre = lstm(x_pre)
         x_post = lstm(x_post)
 
         x = concatenate([ x_pre, x_post ])
-
-        if attention:
-            from seq_self_attention import SelfAttention
-            x = SelfAttention()(x)
 
         output = Dense(vocab_size + 1, activation='softmax')(x)
 
@@ -87,7 +86,6 @@ class BiLSTMLanguageModel(object):
 
         self.seq_len_ = seq_len
         self.vocab_size_ = vocab_size
-        self.attention_ = attention
         self.embedding_dim_ = embedding_dim
         self.hidden_dim_ = hidden_dim
         self.n_hidden_ = n_hidden
@@ -109,7 +107,7 @@ class BiLSTMLanguageModel(object):
         )
 
         mkdir_p('{}/checkpoints/bilstm'.format(self.cache_dir_))
-        model_name = 'bilstm{}'.format('-a' if self.attention_ else '')
+        model_name = 'bilstm'
         checkpoint = ModelCheckpoint(
             '{}/checkpoints/bilstm/{}_{}'
             .format(self.cache_dir_, model_name, self.hidden_dim_) +
@@ -128,10 +126,19 @@ class BiLSTMLanguageModel(object):
         X, y_true = _split_and_pad(
             X_cat, lengths, self.seq_len_, self.vocab_size_, self.verbose_
         )
-        y_pred = self.model_.predict(X, verbose=self.verbose_ > 0,
-                                     batch_size=self.batch_size_)
 
-        prob = y_pred[y_true == 1.].flatten()
-        with np.errstate(divide='ignore'):
-            logprob = np.log(prob)
-        return np.sum(logprob)
+        opt = Adam(learning_rate=0.001, beta_1=0.9, beta_2=0.999,
+                   amsgrad=False)
+        self.model_.compile(
+            loss='sparse_categorical_crossentropy', optimizer=opt,
+            metrics=[ 'accuracy' ]
+        )
+
+        metrics = self.model_.evaluate(X, y_true, verbose=self.verbose_ > 0,
+                                       batch_size=self.batch_size_)
+
+        for val, metric in zip(metrics, self.model_.metrics_names):
+            if self.verbose_:
+                tprint('Metric {}: {}'.format(metric, val))
+
+        return metrics[self.model_.metrics_names.index('loss')] * -len(lengths)

@@ -51,7 +51,7 @@ def process(fnames):
 def split_seqs(seqs, split_method='random'):
     train_seqs, val_seqs = {}, {}
 
-    new_cutoff = dparse('01-01-2019')
+    new_cutoff = dparse('01-01-2016')
 
     tprint('Splitting seqs...')
     for seq in seqs:
@@ -63,7 +63,8 @@ def split_seqs(seqs, split_method='random'):
                 val_seqs[seq] = seqs[seq]
                 continue
         train_seqs[seq] = seqs[seq]
-    tprint('Done.')
+    tprint('{} train seqs, {} test seqs.'
+           .format(len(train_seqs), len(val_seqs)))
 
     return train_seqs, val_seqs
 
