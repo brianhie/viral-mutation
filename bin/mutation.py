@@ -18,6 +18,19 @@ def get_model(args, seq_len, vocab_size,):
             params='ste',
             init_params='ste'
         )
+    elif args.model_name == 'dnn':
+        from dnn import DNNLanguageModel
+        model = DNNLanguageModel(
+            seq_len,
+            vocab_size,
+            embedding_dim=20,
+            hidden_dim=args.dim,
+            n_hidden=2,
+            n_epochs=20,
+            batch_size=1000,
+            cache_dir='target/{}'.format(args.namespace),
+            verbose=2,
+        )
     elif args.model_name == 'lstm':
         from lstm import LSTMLanguageModel
         model = LSTMLanguageModel(
@@ -36,20 +49,6 @@ def get_model(args, seq_len, vocab_size,):
         model = BiLSTMLanguageModel(
             seq_len,
             vocab_size,
-            embedding_dim=20,
-            hidden_dim=args.dim,
-            n_hidden=2,
-            n_epochs=20,
-            batch_size=1000,
-            cache_dir='target/{}'.format(args.namespace),
-            verbose=2,
-        )
-    elif args.model_name == 'bilstm-a':
-        from bilstm import BiLSTMLanguageModel
-        model = BiLSTMLanguageModel(
-            seq_len,
-            vocab_size,
-            attention=True,
             embedding_dim=20,
             hidden_dim=args.dim,
             n_hidden=2,
@@ -81,11 +80,11 @@ def fit_model(name, model, seqs, vocabulary):
 
     if name == 'hmm':
         model.fit(X, lengths)
+    elif name == 'dnn':
+        model.fit(X, lengths)
     elif name == 'lstm':
         model.fit(X, lengths)
     elif name == 'bilstm':
-        model.fit(X, lengths)
-    elif name == 'bilstm-a':
         model.fit(X, lengths)
     else:
         err_model(name)
@@ -130,6 +129,8 @@ def load_hidden_model(args, model):
         layer_name = 'lstm_{}'.format(model.n_hidden_)
     elif args.model_name == 'bilstm':
         layer_name = 'concatenate_1'
+    elif args.model_name == 'dnn':
+        layer_name = 'concatenate_1'
     else:
         raise ValueError('No embedding support for model {}'
                          .format(args.model_name))
@@ -149,6 +150,8 @@ def embed_seqs(args, model, seqs, vocabulary,
         from lstm import _iterate_lengths, _split_and_pad
     elif args.model_name == 'bilstm':
         from bilstm import _iterate_lengths, _split_and_pad
+    elif args.model_name == 'dnn':
+        from dnn import _iterate_lengths, _split_and_pad
     else:
         raise ValueError('No embedding support for model {}'
                          .format(args.model_name))

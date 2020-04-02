@@ -3,7 +3,7 @@ from lstm import *
 from bilstm import _split_and_pad
 
 from keras.models import Model
-from keras.layers import concatenate, Input
+from keras.layers import concatenate, Input, Reshape
 
 class DNNLanguageModel(object):
     def __init__(
@@ -27,8 +27,8 @@ class DNNLanguageModel(object):
 
         embed = Embedding(vocab_size + 1, embedding_dim,
                           input_length=seq_len - 1)
-        x_pre = embed(input_pre)
-        x_post = embed(input_post)
+        x_pre = Reshape((embedding_dim * (seq_len - 1),))(embed(input_pre))
+        x_post = Reshape((embedding_dim * (seq_len - 1),))(embed(input_post))
 
         for _ in range(n_hidden):
             dense = Dense(hidden_dim, activation='relu')

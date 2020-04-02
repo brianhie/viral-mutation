@@ -82,7 +82,7 @@ def find_semantic_distance(wordtag1, wordtag2):
             syn2 = wn.synset('{}.n.01'.format(word2))
         except nltk.corpus.reader.wordnet.WordNetError:
             return None
-        return syn1.path_similarity(syn2)
+        return syn1.path_similarity(syn2), syn1.wup_similarity(syn2)
 
     if tag1.startswith('VB') and tag2.startswith('VB'):
         try:
@@ -98,7 +98,7 @@ def find_semantic_distance(wordtag1, wordtag2):
             syn2 = wn.synset('{}.v.01'.format(word2))
         except nltk.corpus.reader.wordnet.WordNetError:
             return None
-        return syn1.path_similarity(syn2)
+        return syn1.path_similarity(syn2), syn1.wup_similarity(syn2)
 
     return None
 
@@ -110,14 +110,15 @@ def part_of_speech(infos, backend='nltk', n_most=10):
     pct_pos_change = { category: [] for category in categories }
 
     if backend == 'nltk':
-        wordnet_dist = { category: [] for category in categories }
+        wordnet_path_dist = { category: [] for category in categories }
+        wordnet_wup_dist = { category: [] for category in categories }
 
     for info in infos:
         for category in categories:
             diff_idx = find_diff(info['orig'], info[category])
 
-            pos_orig = pos_tag(info['orig'])
-            pos_category = pos_tag(info[category])
+            pos_orig = pos_tag(info['orig'], backend=backend)
+            pos_category = pos_tag(info[category], backend=backend)
             assert(len(pos_orig) == len(pos_category))
 
             word_orig = pos_orig[diff_idx]
@@ -137,9 +138,11 @@ def part_of_speech(infos, backend='nltk', n_most=10):
             ]) / float(len(pos_orig)) * 100.)
 
             if backend == 'nltk':
-                dist = find_semantic_distance(word_orig, word_cat)
-                if dist is not None:
-                    wordnet_dist[category].append(dist)
+                dists = find_semantic_distance(word_orig, word_cat)
+                if dists is not None:
+                    path_dist, wup_dist = dists
+                    wordnet_path_dist[category].append(path_dist)
+                    wordnet_wup_dist[category].append(wup_dist)
 
     for category in categories:
         print('Category: {}'.format(category))
@@ -164,8 +167,15 @@ def part_of_speech(infos, backend='nltk', n_most=10):
                       change_distr.std()))
 
         if backend == 'nltk':
-            sem_distr = np.array(wordnet_dist[category])
-            print('\tSemantic similarity of changes ({} total), '
+            sem_distr = np.array(wordnet_path_dist[category])
+            print('\tSemantic path similarity of changes ({} total), '
+                  'mean: {:.4f}, median: {:.4f}, '
+                  'min: {:.4f}, max: {:.4f}, std: {:.4f}'
+                  .format(len(sem_distr),
+                          np.mean(sem_distr), np.median(sem_distr),
+                          sem_distr.min(), sem_distr.max(), sem_distr.std()))
+            sem_distr = np.array(wordnet_wup_dist[category])
+            print('\tSemantic Wu-Palmer similarity of changes ({} total), '
                   'mean: {:.4f}, median: {:.4f}, '
                   'min: {:.4f}, max: {:.4f}, std: {:.4f}'
                   .format(len(sem_distr),
@@ -229,13 +239,4 @@ if __name__ == '__main__':
                 infos.append(info)
 
     part_of_speech(infos, backend='nltk')
-    exit()
-    #part_of_speech(infos, backend='flair')
-
-    lda_topic_model(infos, 10)
-    tprint('')
-    lda_topic_model(infos, 20)
-    tprint('')
-    lda_topic_model(infos, 50)
-    tprint('')
-    lda_topic_model(infos, 100)
+    part_of_speech(infos, backend='flair')
