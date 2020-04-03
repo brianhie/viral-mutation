@@ -62,6 +62,7 @@ def process(fnames, meta_fnames):
             accession = record.description
             meta = metas[accession]
             seqs[record.seq].append(meta)
+
     return seqs
 
 def split_seqs(seqs, split_method='random'):
@@ -71,7 +72,7 @@ def split_seqs(seqs, split_method='random'):
         train_seqs, test_seqs = {}, {}
 
         old_cutoff = 1900
-        new_cutoff = 2006
+        new_cutoff = 2008
 
         tprint('Splitting seqs...')
         for seq in seqs:
@@ -95,8 +96,8 @@ def split_seqs(seqs, split_method='random'):
     return train_seqs, test_seqs
 
 def setup(args):
-    fnames = [ 'data/hiv/HIV-1_env.fa' ]
-    meta_fnames = [ 'data/hiv/HIV-1_env.fa' ]
+    fnames = [ 'data/hiv/HIV-1_env_samelen.fa' ]
+    meta_fnames = [ 'data/hiv/HIV-1_env_samelen.fa' ]
 
     with warnings.catch_warnings():
         warnings.simplefilter('ignore', BiopythonWarning)

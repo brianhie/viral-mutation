@@ -12,7 +12,6 @@ def get_model(args, seq_len, vocab_size,):
             transmat_prior=1.0,
             algorithm='viterbi',
             random_state=1,
-            n_iter=100,
             tol=0.01,
             verbose=True,
             params='ste',

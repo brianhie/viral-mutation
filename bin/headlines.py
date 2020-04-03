@@ -239,7 +239,7 @@ if __name__ == '__main__':
         random_sample = np.random.choice(
             [ ' '.join(seq) for seq in seqs ], 50
         )
-        for headline in random_sample:
+        for headline in random_sample[12:]:
             tprint('')
             analyze_semantics(args, model, headline.split(' '),
                               vocabulary, n_most_probable=3,
