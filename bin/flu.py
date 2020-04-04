@@ -13,6 +13,10 @@ def parse_args():
                         help='Type of language model (e.g., hmm, lstm)')
     parser.add_argument('--namespace', type=str, default='flu',
                         help='Model namespace')
+    parser.add_argument('--dim', type=int, default=256,
+                        help='Embedding dimension')
+    parser.add_argument('--n-epochs', type=int, default=20,
+                        help='Number of training epochs')
     parser.add_argument('--checkpoint', type=str, default=None,
                         help='Model checkpoint')
     parser.add_argument('--train', action='store_true',
@@ -23,8 +27,6 @@ def parse_args():
                         help='Test model')
     parser.add_argument('--embed', action='store_true',
                         help='Analyze embeddings')
-    parser.add_argument('--dim', type=int, default=256,
-                        help='Embedding dimension')
     parser.add_argument('--semantics', action='store_true',
                         help='Analyze mutational semantic change')
     args = parser.parse_args()

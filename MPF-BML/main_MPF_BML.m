@@ -43,12 +43,17 @@ addpath('3rd Party Code/')
 % out if there is user-provided "msa_aa" and "weight_seq"
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-test_example=0; % load the test example
+test_example = 0; % load the test example
 
-fasta_name = 'hivgp160_processed_MSA.fasta';
-load hivgp160_patient_weighting
+fasta_name = '../target/flu/clusters/all_h3.fasta';
 [Header_fasta, Sequence_fasta] = fastaread(fasta_name);
-msa_aa = cell2mat(Sequence_fasta');
+msa_aa_train = cell2mat(Sequence_fasta');
+
+fasta_name = '../target/flu/mutation/mutations_h3.fa';
+[Header_fasta, Sequence_fasta] = fastaread(fasta_name);
+msa_aa_mut = cell2mat(Sequence_fasta');
+
+msa_aa = [ msa_aa_train; msa_aa_mut ];
 
 if test_example==1
     % For testing purposes, reduce the number of sequences and residues
@@ -65,13 +70,11 @@ end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Set default weight_seq if not specified by user
-num_seq = size(msa_aa,1); % number of sequences
+num_seq = size(msa_aa_train, 1); % number of sequences
 if ~exist('weight_seq')
     % set equal weighting if weighting vector not provided
-    weight_seq = ones(num_seq,1);
+    weight_seq = [ ones(num_seq,1); (1e-5 * ones(size(msa_aa_mut, 1), 1)) ];
 end
-
-num_patients = sum(weight_seq); % number of patients
 
 % Remove and find location of 100% conserved residues
 num_residue = size(msa_aa,2);
@@ -101,9 +104,10 @@ end
 
 time_step1_mutant_combine = tic();
 
-% phi_opt = mutant_combining(msa_aa, 'phi_array',[0:0.01:1]);
-phi_opt = mutant_combining(msa_aa, 'weight_seq',weight_seq);
-% phi_opt = mutant_combining(msa_aa);
+phi_opt = mutant_combining(msa_aa, 'phi_array', [0:0.01:1]);
+%phi_opt = mutant_combining(msa_aa, 'weight_seq', weight_seq);
+
+disp(['phi_opt = ' num2str(phi_opt)]);
 
 time_step1_mutant_combine = toc(time_step1_mutant_combine);
 
@@ -116,7 +120,8 @@ disp(['Step 1: Mutant combining, Time: ' num2str(time_step1_mutant_combine) ' se
 time_helper_variable = tic();
 
 [msa_bin,msa_bin_unique,weight_seq_unique, freq_single_combine_array,amino_single_combine_array,num_mutants_combine_array] = ...
-    helper_variables(msa_aa,'weight_seq',weight_seq,'phi_opt',phi_opt);
+    helper_variables(msa_aa,'weight_seq',weight_seq,'phi_opt', ...
+                     phi_opt);
 
 time_helper_variable = toc(time_helper_variable);
 
@@ -141,7 +146,8 @@ options_MPF.prog_tol = options_MPF.progTol
 options_MPF.maxIter = 10000;
 options_MPF.max_iter = options_MPF.maxIter;
 
-J_MPF = MPF_run(msa_bin_unique,weight_seq_unique,num_mutants_combine_array,phi_opt,options_MPF);
+J_MPF = MPF_run(msa_bin_unique,weight_seq_unique, ...
+                num_mutants_combine_array,phi_opt,options_MPF);
 
 time_step2_MPF = toc(time_step2_MPF);
 
@@ -158,10 +164,13 @@ options_BML.eps_max = 1.15;
 options_BML.thin = 3e3; % thinning parameter
 options_BML.burnin = 1e4; % number of samples to burn
 options_BML.no_sample_MCMC = 1e7 % number of samples before burning and thinning
-options_BML.par_opt = 1; % using only one core. A value of "1" means multiple-cores are used
-options_BML.no_seeds = 2; % number of seeds
+options_BML.par_opt = 1; % A value of "1" means multiple-cores are used
+options_BML.no_seeds = 12; % number of physical cores
 
-J_MPF_BML =BML_run(J_MPF,msa_bin_unique,weight_seq_unique,num_mutants_combine_array,options_BML);
+J_MPF_BML =BML_run(J_MPF,msa_bin_unique,weight_seq_unique, ...
+                   num_mutants_combine_array,options_BML);
+
+dlmwrite(strcat(fasta_name, '.J.txt'), J_MPF_BML)
 
 time_step2_BML = toc(time_step2_BML);
 

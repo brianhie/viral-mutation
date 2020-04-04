@@ -1,6 +1,6 @@
 for file in target/clusters/*.fa
 do
-    /usr/local/bin/mafft --thread 40 --auto --clustalout --inputorder $file > $file.clustal
+    /usr/local/bin/mafft --thread 40 --auto --inputorder $file > $file.clustal
 done
 
 CONS_DIR=/scratch2/brianhie/conservation_code

@@ -3,7 +3,8 @@ from utils import *
 def err_model(name):
     raise ValueError('Model {} not supported'.format(name))
 
-def get_model(args, seq_len, vocab_size,):
+def get_model(args, seq_len, vocab_size, batch_size=1000,
+              fp_precision='float32'):
     if args.model_name == 'hmm':
         from hmmlearn.hmm import MultinomialHMM
         model = MultinomialHMM(
@@ -25,9 +26,10 @@ def get_model(args, seq_len, vocab_size,):
             embedding_dim=20,
             hidden_dim=args.dim,
             n_hidden=2,
-            n_epochs=20,
-            batch_size=1000,
+            n_epochs=args.n_epochs,
+            batch_size=batch_size,
             cache_dir='target/{}'.format(args.namespace),
+            fp_precision=fp_precision,
             verbose=2,
         )
     elif args.model_name == 'lstm':
@@ -38,9 +40,10 @@ def get_model(args, seq_len, vocab_size,):
             embedding_dim=20,
             hidden_dim=args.dim,
             n_hidden=2,
-            n_epochs=20,
-            batch_size=1000,
+            n_epochs=args.n_epochs,
+            batch_size=batch_size,
             cache_dir='target/{}'.format(args.namespace),
+            fp_precision=fp_precision,
             verbose=2,
         )
     elif args.model_name == 'bilstm':
@@ -51,9 +54,10 @@ def get_model(args, seq_len, vocab_size,):
             embedding_dim=20,
             hidden_dim=args.dim,
             n_hidden=2,
-            n_epochs=20,
-            batch_size=1000,
+            n_epochs=args.n_epochs,
+            batch_size=batch_size,
             cache_dir='target/{}'.format(args.namespace),
+            fp_precision=fp_precision,
             verbose=2,
         )
     else:

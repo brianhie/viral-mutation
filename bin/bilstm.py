@@ -12,7 +12,7 @@ def _split_and_pad(X_cat, lengths, seq_len, vocab_size, verbose):
                          .format(X_cat.shape[0], sum(lengths)))
 
     if verbose > 1:
-        tprint('Splitting...')
+        tprint('Splitting {} seqs...'.format(len(lengths)))
     X_seqs = [
         X_cat[start:end].flatten()
         for start, end in _iterate_lengths(lengths, seq_len)
@@ -28,15 +28,19 @@ def _split_and_pad(X_cat, lengths, seq_len, vocab_size, verbose):
     ])
 
     if verbose > 1:
-        tprint('Padding...')
+        tprint('Padding {} splitted...'.format(len(X_pre)))
     X_pre = pad_sequences(
         X_pre, maxlen=seq_len - 1,
-        dtype='int32', padding='pre', truncating='pre', value=0.
+        dtype='int32', padding='pre', truncating='pre', value=0
     )
+    if verbose > 1:
+        tprint('Padding {} splitted again...'.format(len(X_pre)))
     X_post = pad_sequences(
         X_post, maxlen=seq_len - 1,
-        dtype='int32', padding='post', truncating='post', value=0.
+        dtype='int32', padding='post', truncating='post', value=0
     )
+    if verbose > 1:
+        tprint('Flipping...')
     X_post = np.flip(X_post, 1)
     X = [ X_pre, X_post ]
 
@@ -55,11 +59,14 @@ class BiLSTMLanguageModel(object):
             n_epochs=1,
             batch_size=1000,
             cache_dir='.',
+            fp_precision='float32',
             verbose=False
     ):
         config = tf.ConfigProto()
         config.gpu_options.allow_growth = True
         K.tensorflow_backend.set_session(tf.Session(config=config))
+        if fp_precision != K.floatx():
+            K.set_floatx(fp_precision)
 
         input_pre = Input(shape=(seq_len - 1,))
         input_post = Input(shape=(seq_len - 1,))

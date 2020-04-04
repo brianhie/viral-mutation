@@ -27,6 +27,13 @@ def _split_and_pad(X_cat, lengths, seq_len, vocab_size, verbose):
         raise ValueError('Length dimension mismatch: {} and {}'
                          .format(X_cat.shape[0], sum(lengths)))
 
+    if vocab_size >= 32767:
+        intp = 'int32'
+    elif vocab_size >= 127:
+        intp = 'int16'
+    else:
+        intp = 'int8'
+
     if verbose > 1:
         tprint('Splitting...')
     X_seqs = [
@@ -39,7 +46,7 @@ def _split_and_pad(X_cat, lengths, seq_len, vocab_size, verbose):
         tprint('Padding...')
     padded = pad_sequences(
         X_seqs, maxlen=seq_len,
-        dtype='int32', padding='pre', truncating='pre', value=0.
+        dtype=intp, padding='pre', truncating='pre', value=0.
     )
     X, y = padded[:, :-1], padded[:, -1]
 
@@ -58,11 +65,14 @@ class LSTMLanguageModel(object):
             n_epochs=1,
             batch_size=1000,
             cache_dir='.',
+            fp_precision='float32',
             verbose=False
     ):
         config = tf.ConfigProto()
         config.gpu_options.allow_growth = True
         K.tensorflow_backend.set_session(tf.Session(config=config))
+        if fp_precision != K.floatx():
+            K.set_floatx(fp_precision)
 
         model = Sequential()
         model.add(Embedding(vocab_size + 1, embedding_dim,
