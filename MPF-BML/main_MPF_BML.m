@@ -1,5 +1,7 @@
-close all
-clear all;
+function [ out ] = main_MPF_BML(fasta_name, mut_name)
+
+%close all
+%clear all;
 
 addpath('Helper Functions/')
 addpath('3rd Party Code/')
@@ -45,12 +47,10 @@ addpath('3rd Party Code/')
 
 test_example = 0; % load the test example
 
-fasta_name = '../target/flu/clusters/all_h3.fasta';
 [Header_fasta, Sequence_fasta] = fastaread(fasta_name);
 msa_aa_train = cell2mat(Sequence_fasta');
 
-fasta_name = '../target/flu/mutation/mutations_h3.fa';
-[Header_fasta, Sequence_fasta] = fastaread(fasta_name);
+[Header_fasta, Sequence_fasta] = fastaread(mut_name);
 msa_aa_mut = cell2mat(Sequence_fasta');
 
 msa_aa = [ msa_aa_train; msa_aa_mut ];
@@ -73,7 +73,7 @@ end
 num_seq = size(msa_aa_train, 1); % number of sequences
 if ~exist('weight_seq')
     % set equal weighting if weighting vector not provided
-    weight_seq = [ ones(num_seq,1); (1e-5 * ones(size(msa_aa_mut, 1), 1)) ];
+    weight_seq = [ ones(num_seq,1); (1e-10 * ones(size(msa_aa_mut, 1), 1)) ];
 end
 
 % Remove and find location of 100% conserved residues
@@ -143,7 +143,7 @@ options_MPF.progTol = 1e-20;
 options_MPF.opt_tol = options_MPF.optTol;
 options_MPF.prog_tol = options_MPF.progTol
 
-options_MPF.maxIter = 10000;
+options_MPF.maxIter = 200;
 options_MPF.max_iter = options_MPF.maxIter;
 
 J_MPF = MPF_run(msa_bin_unique,weight_seq_unique, ...

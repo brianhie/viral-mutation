@@ -27,14 +27,23 @@ def msa_subset(ifname, ofname, anchor_id, cutoff=0):
 
 
 if __name__ == '__main__':
+    print('H1 escape...')
     msa_subset(
-        'target/hiv/clusters/all.fasta',
-        'target/flu/clusters/all_BG505.fasta',
-        'A1.KE.-.MG505_W0M_ENV_E1.DQ208453', 20
+        'target/flu/clusters/all.fasta',
+        'target/flu/clusters/all_h1.fasta',
+        'gb:LC333185|ncbiId:BBB04702.1|UniProtKB:-N/A-|'
+        'Organism:Influenza', 4
     )
+    print('H3 escape...')
     msa_subset(
         'target/flu/clusters/all.fasta',
         'target/flu/clusters/all_h3.fasta',
         'gb:GQ293081|ncbiId:ACS71642.1|UniProtKB:C6KNH7|'
         'Organism:Influenza', 0
+    )
+    print('HIV escape...')
+    msa_subset(
+        'target/hiv/clusters/all.fasta',
+        'target/hiv/clusters/all_BG505.fasta',
+        'A1.KE.-.BG505_W6M_ENV_C2.DQ208458', 25
     )
