@@ -30,14 +30,6 @@ def escape_energy(virus):
     energies = np.loadtxt(energy_fname)
     assert(len(energies) == len(train_seqs) + len(mut_seqs))
 
-    one_seq = str(mut_seqs[69].seq).replace('-', '')
-
-    from Bio import pairwise2
-    from Bio.pairwise2 import format_alignment
-    alignments = pairwise2.align.globalxx(str(seq), one_seq)
-    print(format_alignment(*alignments[0]))
-    exit()
-
     escape_idx = [
         idx for idx, mut_seq in enumerate(mut_seqs)
         if str(mut_seq.seq).replace('-', '') in seqs_escape
