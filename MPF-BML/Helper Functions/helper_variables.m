@@ -1,18 +1,18 @@
 function [msa_bin, msa_bin_unique,weight_seq_unique,freq_single_combine_array,amino_single_combine_array,num_mutants_combine_array,phi_opt] = helper_variables(msa_aa,varargin)
 % binMatAfterComb(msa_aa,weight_seq,phi_opt)
-% 
+%
 % Calculates the binary matrix and amino acid information after
 % mutant comnbining
 
 % Inputs:
-%       msa_aa - matrix of characters (aka amino acid MSA). Rows correspond to 
+%       msa_aa - matrix of characters (aka amino acid MSA). Rows correspond to
 %                sequences, and colums to observed states at a particular residue
 %       helper_variables(...,'weight_seq',weight_seq)
 %                     weight of each sequence, length is equal to the the number of
 %                     rows in msa_aa. Default is equal weighting
-%       helper_variables(...,'phi_opt',phi_opt)-  (optional) 
+%       helper_variables(...,'phi_opt',phi_opt)-  (optional)
 %                     mutant combining factor. Default: phi_opt=1 (Potts)
-% 
+%
 % Outputs:
 %       msa_bin - binary extended matrix after combining with factor phi_opt
 %       msa_bin_unique - unique rows of msa_bin
@@ -43,11 +43,11 @@ if  nargin > 1
             error(strcat('Unknown argument', pname));
         else
             switch(k)
-                case 1  
+                case 1
                     weight_seq = pval;
-                case 2 
+                case 2
                     phi_opt=pval;
-                    
+
             end
         end
     end
@@ -71,7 +71,7 @@ for aba=1:30
     temp_matrix = fliplr(eye(aba));
     temp_matrix = [zeros(1,size(temp_matrix,2)) ; temp_matrix ];
     bin_matrix{aba} =temp_matrix;
-    
+
 end
 
 protein_length_aa = length(freq_single_array);
@@ -84,10 +84,10 @@ for ind_res = 1:protein_length_aa
     curr_freq = freq_single_array{ind_res};
     curr_amino = amino_single_array{ind_res};
     curr_num_amino = length(curr_freq); % number of amino acids in residue ind_res
-    
+
     % entropy
     entropy_all = -sum(curr_freq.*log(curr_freq));
-    
+
     % ratio of combined mutant entropy over entropy for different ki
     entropy_ratio = zeros(curr_num_amino-1,1);
     for ki=1:curr_num_amino-1
@@ -95,7 +95,7 @@ for ind_res = 1:protein_length_aa
         entropy_ki = -sum(curr_freq(1:ki).*log(curr_freq(1:ki))) - fbar*log(fbar);
         entropy_ratio(ki) = entropy_ki/entropy_all;
     end
-    
+
     ki_phi = find(entropy_ratio>=phi_opt); %ki corresponding to phi_opt
     if length(ki_phi)==0 % 100% conserved
         ki_phi=0;
@@ -109,22 +109,22 @@ for ind_res = 1:protein_length_aa
     num_mutants_combine_array(ind_res) = ki_phi;
     freq_single_combine_array{ind_res} = fbar2;
     freq_mutant_combine_array{ind_res} = fliplr(fbar2(2:end));
-    
+
     curr_amino_combine= curr_amino(1:ki_phi+1);
     for ind_seq=1:num_seq
-        
+
         loc_amino = find(msa_aa(ind_seq,ind_res)==curr_amino_combine);
         if (length(loc_amino)==0)
             loc_amino=length(curr_amino_combine);
         end
-        
+
         curr_bin_matrix = bin_matrix{ki_phi};
         bin_value = curr_bin_matrix(loc_amino,:);
-        
+
         msa_bin(ind_seq,curr_start_pos+1:curr_start_pos+ki_phi)=bin_value; % binary potts matrix
     end
     curr_start_pos =   curr_start_pos +ki_phi;
-    
+
 end
 
 % form new binary MSA based on unique sequences

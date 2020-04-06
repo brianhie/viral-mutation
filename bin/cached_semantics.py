@@ -65,7 +65,6 @@ def cached_escape_semantics(cache_fname, beta, plot=True):
         norm = max(n_consider) * max(n_escape)
         norm_auc = auc(n_consider, n_escape) / norm
 
-
         escape_rank_prob = ss.rankdata(-data['prob'])[escape_idx]
         n_escape_prob = np.array([ sum(escape_rank_prob <= i + 1)
                                    for i in range(max_consider) ])

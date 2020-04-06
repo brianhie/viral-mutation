@@ -62,19 +62,20 @@ if test_example==1
     num_seq_test=1000; % number of sequences used for testing
     num_residue_test = 70; % number of residues used in testing
 
-    msa_aa = msa_aa(1:num_seq_test,1:num_residue_test); % amino acid MSA
+    msa_aa = msa_aa(1:num_seq_test,1:num_residue_test);
+    weight_seq = ones(num_seq_test, 1);
+else
+    % Set default weight_seq if not specified by user
+    num_seq = size(msa_aa_train, 1); % number of sequences
+    if ~exist('weight_seq')
+        % set equal weighting if weighting vector not provided
+        weight_seq = [ ones(num_seq,1); (1e-10 * ones(size(msa_aa_mut, 1), 1)) ];
+    end
 end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Set default weight and remove 100% conserved sites
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-% Set default weight_seq if not specified by user
-num_seq = size(msa_aa_train, 1); % number of sequences
-if ~exist('weight_seq')
-    % set equal weighting if weighting vector not provided
-    weight_seq = [ ones(num_seq,1); (1e-10 * ones(size(msa_aa_mut, 1), 1)) ];
-end
 
 % Remove and find location of 100% conserved residues
 num_residue = size(msa_aa,2);
@@ -170,7 +171,8 @@ options_BML.no_seeds = 12; % number of physical cores
 J_MPF_BML =BML_run(J_MPF,msa_bin_unique,weight_seq_unique, ...
                    num_mutants_combine_array,options_BML);
 
-dlmwrite(strcat(fasta_name, '.J.txt'), J_MPF_BML)
+dlmwrite(strcat(fasta_name, '.J.txt'), J_MPF_BML);
+dlmwrite(strcat(fasta_name, ".E.txt"), diag(msa_bin * J_MPF_BML * msa_bin.'));
 
 time_step2_BML = toc(time_step2_BML);
 
@@ -187,3 +189,5 @@ out = verify_param(J_MPF,msa_bin_unique,weight_seq_unique,num_mutants_combine_ar
 
 % verify MPF-BML parameters
 out = verify_param(J_MPF_BML,msa_bin_unique,weight_seq_unique,num_mutants_combine_array);
+
+exit

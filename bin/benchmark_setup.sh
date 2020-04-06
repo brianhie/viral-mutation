@@ -9,11 +9,7 @@
     data/hiv/HIV-1_env_samelen.fa \
     > target/hiv/clusters/all.fasta
 
-python bin/msa_subset.py
-
-python bin/allmut2fasta.py h1
-python bin/allmut2fasta.py h3
-python bin/allmut2fasta.py hiv
+python bin/benchmark_subset.py
 
 cd MPF-BML/
 matlab -r "fasta_name = '../target/flu/clusters/all_h1.fasta'; mut_name = '../target/flu/mutation/mutations_h1.fa'; main_MPF_BML(fasta_name, mut_name)"
