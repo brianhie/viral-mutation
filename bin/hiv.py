@@ -164,7 +164,17 @@ def plot_umap(adata):
                s=np.log(np.array(adata.obs['n_seq']) * 100) + 1)
 
 def analyze_embedding(args, model, seqs, vocabulary):
-    seqs = embed_seqs(args, model, seqs, vocabulary)
+    sorted_seqs = np.array([ str(s) for s in sorted(seqs.keys()) ])
+    batch_size = 10000
+    n_batches = math.ceil(len(sorted_seqs) / float(batch_size))
+    for batchi in range(n_batches):
+        start = batchi * batch_size
+        end = (batchi + 1) * batch_size
+        seqs_batch = { seq: seqs[seq] for seq in sorted_seqs[start:end] }
+        seqs_batch = embed_seqs(args, model, seqs_batch, vocabulary)
+        for seq in seqs_batch:
+            for meta in seqs[seq]:
+                meta['embedding'] = seqs_batch[seq][0]['embedding']
 
     X, obs = [], {}
     obs['n_seq'] = []
@@ -196,60 +206,6 @@ def analyze_embedding(args, model, seqs, vocabulary):
 
     interpret_clusters(adata)
     #seq_clusters(adata)
-
-def analyze_semantics(args, model, vocabulary, seq_to_mutate, escape_seqs,
-                      prob_cutoff=0, beta=1., verbose=False):
-    seqs = { seq_to_mutate: [ {} ] }
-    X_cat, lengths = featurize_seqs(seqs, vocabulary)
-
-    if args.model_name == 'lstm':
-        from lstm import _split_and_pad
-    elif args.model_name == 'bilstm':
-        from bilstm import _split_and_pad
-    else:
-        raise ValueError('No semantics support for model {}'
-                         .format(args.model_name))
-
-    X = _split_and_pad(X_cat, lengths, model.seq_len_,
-                       model.vocab_size_, verbose)[0]
-    y_pred = model.model_.predict(X, batch_size=2500)
-    assert(y_pred.shape[0] == len(seq_to_mutate) + 2)
-    assert(y_pred.shape[1] == len(AAs) + 3)
-
-    word_pos_prob = {}
-    for i in range(len(seq_to_mutate)):
-        for word in vocabulary:
-            word_idx = vocabulary[word]
-            prob = y_pred[i + 1, word_idx]
-            if prob < prob_cutoff:
-                continue
-            word_pos_prob[(word, i)] = prob
-
-    prob_sorted = sorted(word_pos_prob.items(), key=lambda x: -x[1])
-    prob_seqs = { seq_to_mutate: [ {} ] }
-    seq_prob = {}
-    for (word, pos), prob in prob_sorted:
-        mutable = seq_to_mutate[:pos] + word + seq_to_mutate[pos + 1:]
-        prob_seqs[mutable] = [ {} ]
-        seq_prob[mutable] = prob
-
-    prob_seqs = embed_seqs(args, model, prob_seqs, vocabulary,
-                           use_cache=False, verbose=verbose)
-    base_embedding = prob_seqs[seq_to_mutate][0]['embedding']
-    seq_change = {}
-    for seq in prob_seqs:
-        embedding = prob_seqs[seq][0]['embedding']
-        # L1 distance between embedding vectors.
-        seq_change[seq] = abs(base_embedding - embedding).sum()
-
-    seqs = np.array([ str(seq) for seq in sorted(seq_prob.keys()) ])
-    prob = np.array([ seq_prob[seq] for seq in seqs ])
-    change = np.array([ seq_change[seq] for seq in seqs ])
-
-    dirname = 'target/hiv/semantics/cache'
-    mkdir_p(dirname)
-    cache_fname = dirname + '/plot.npz'
-    np.savez_compressed(cache_fname, prob, change)
 
 if __name__ == '__main__':
     args = parse_args()
@@ -288,4 +244,10 @@ if __name__ == '__main__':
         if args.checkpoint is None and not args.train:
             raise ValueError('Model must be trained or loaded '
                              'from checkpoint.')
-        raise NotImplementedError()
+
+        from escape import load_dingens2019
+        tprint('Dingens et al. 2019...')
+        seq_to_mutate, escape_seqs = load_dingens2019()
+
+        analyze_semantics(args, model, vocabulary, seq_to_mutate, escape_seqs,
+                          prob_cutoff=0., beta=1., plot_acquisition=True,)
