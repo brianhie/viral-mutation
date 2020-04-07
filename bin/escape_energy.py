@@ -34,7 +34,6 @@ def escape_energy(virus):
         idx for idx, mut_seq in enumerate(mut_seqs)
         if str(mut_seq.seq).replace('-', '') in seqs_escape
     ]
-    print((len(escape_idx), len(seqs_escape)))
     assert(len(escape_idx) == len(seqs_escape) - 1)
 
     mut_energies = energies[len(train_seqs):]

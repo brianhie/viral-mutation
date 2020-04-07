@@ -266,7 +266,7 @@ if __name__ == '__main__':
     if args.checkpoint is not None:
         model.model_.load_weights(args.checkpoint)
         tprint('Model summary:')
-        print(model.model_.summary())
+        tprint(model.model_.summary())
 
     if args.train_split or args.test:
         train_test(args, model, seqs, vocabulary, split_seqs)

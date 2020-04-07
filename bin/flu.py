@@ -60,6 +60,8 @@ def process(fnames, meta_fnames):
     seqs = {}
     for fname in fnames:
         for record in SeqIO.parse(fname, 'fasta'):
+            if 'Reference_Perth2009_HA_coding_sequence' in record.description:
+                continue
             if record.seq not in seqs:
                 seqs[record.seq] = []
             accession = record.description.split('|')[0].split(':')[1]
@@ -316,7 +318,7 @@ if __name__ == '__main__':
     if args.checkpoint is not None:
         model.model_.load_weights(args.checkpoint)
         tprint('Model summary:')
-        print(model.model_.summary())
+        tprint(model.model_.summary())
 
     if args.train or args.train_split or args.test:
         train_test(args, model, seqs, vocabulary, split_seqs)

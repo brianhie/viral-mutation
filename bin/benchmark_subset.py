@@ -54,26 +54,26 @@ def write_mutants(virus, mutants, mutant_names, outfile):
             of.write('{}\n'.format(mutant))
 
 if __name__ == '__main__':
-    #print('H1 escape...')
-    #anchor = msa_subset(
-    #    'target/flu/clusters/all.fasta',
-    #    'target/flu/clusters/all_h1.fasta',
-    #    'gb:LC333185|ncbiId:BBB04702.1|UniProtKB:-N/A-|'
-    #    'Organism:Influenza', 4
-    #)
-    #mutants, mutant_names = create_mutants('h1', anchor)
-    #write_mutants('h1', mutants, mutant_names,
-    #              'target/flu/mutation/mutations_h1.fa')
-    #
-    #print('H3 escape...')
-    #anchor = msa_subset(
-    #    'target/flu/clusters/all.fasta',
-    #    'target/flu/clusters/all_h3.fasta',
-    #    'Reference_Perth2009_HA_coding_sequence', 0
-    #)
-    #mutants, mutant_names = create_mutants('h3', anchor)
-    #write_mutants('h3', mutants, mutant_names,
-    #              'target/flu/mutation/mutations_h3.fa')
+    print('H1 escape...')
+    anchor = msa_subset(
+        'target/flu/clusters/all.fasta',
+        'target/flu/clusters/all_h1.fasta',
+        'gb:LC333185|ncbiId:BBB04702.1|UniProtKB:-N/A-|'
+        'Organism:Influenza', 2
+    )
+    mutants, mutant_names = create_mutants('h1', anchor)
+    write_mutants('h1', mutants, mutant_names,
+                  'target/flu/mutation/mutations_h1.fa')
+
+    print('H3 escape...')
+    anchor = msa_subset(
+        'target/flu/clusters/all.fasta',
+        'target/flu/clusters/all_h3.fasta',
+        'Reference_Perth2009_HA_coding_sequence', 0
+    )
+    mutants, mutant_names = create_mutants('h3', anchor)
+    write_mutants('h3', mutants, mutant_names,
+                  'target/flu/mutation/mutations_h3.fa')
 
     print('HIV escape...')
     anchor = msa_subset(

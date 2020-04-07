@@ -182,6 +182,17 @@ def part_of_speech(infos, backend='nltk', n_most=10):
                           np.mean(sem_distr), np.median(sem_distr),
                           sem_distr.min(), sem_distr.max(), sem_distr.std()))
 
+    print('\tMod vs least POS t-test:')
+    print(ss.ttest_ind(np.array(n_pos_change['mod']),
+                       np.array(n_pos_change['least'])))
+    if backend == 'nltk':
+        print('\tMod vs least path-similarity t-test:')
+        print(ss.ttest_ind(np.array(wordnet_path_dist['mod']),
+                           np.array(wordnet_path_dist['least'])))
+        print('\tMod vs least WuP-similarity t-test:')
+        print(ss.ttest_ind(np.array(wordnet_wup_dist['mod']),
+                           np.array(wordnet_wup_dist['least'])))
+
 def train_topic_model(seqs, vocabulary, n_components=10):
     seqs = np.array([ ' '.join(seq) for seq in sorted(seqs.keys()) ])
 
