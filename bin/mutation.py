@@ -141,10 +141,11 @@ def load_hidden_model(args, model):
         inputs=model.model_.input,
         outputs=model.model_.get_layer(layer_name).output
     )
+    hidden.compile('adam', 'mean_squared_error')
     return hidden
 
 def embed_seqs(args, model, seqs, vocabulary,
-               use_cache=True, verbose=True):
+               use_cache=False, verbose=True):
     X_cat, lengths = featurize_seqs(seqs, vocabulary)
 
     hidden = load_hidden_model(args, model)
@@ -189,6 +190,9 @@ def embed_seqs(args, model, seqs, vocabulary,
 def analyze_semantics(args, model, vocabulary, seq_to_mutate, escape_seqs,
                       prob_cutoff=0., beta=1., plot_acquisition=True,
                       verbose=True):
+    dirname = ('target/{}/semantics/cache'.format(args.namespace))
+    mkdir_p(dirname)
+
     seqs = { seq_to_mutate: [ {} ] }
     X_cat, lengths = featurize_seqs(seqs, vocabulary)
 
@@ -218,10 +222,26 @@ def analyze_semantics(args, model, vocabulary, seq_to_mutate, escape_seqs,
     prob_sorted = sorted(word_pos_prob.items(), key=lambda x: -x[1])
     prob_seqs = { seq_to_mutate: [ {} ] }
     seq_prob = {}
+    seqs = []
     for (word, pos), prob in prob_sorted:
         mutable = seq_to_mutate[:pos] + word + seq_to_mutate[pos + 1:]
         prob_seqs[mutable] = [ {} ]
         seq_prob[mutable] = prob
+
+    seqs = np.array([ str(seq) for seq in sorted(seq_prob.keys()) ])
+
+    ofname = dirname + '/{}_mutations.txt'.format(args.namespace)
+    with open(ofname, 'w') as of:
+        of.write('orig\tmutant\n')
+        for seq in seqs:
+            try:
+                didx = [
+                    c1 != c2 for c1, c2 in zip(seq_to_mutate, seq)
+                ].index(True)
+                of.write('{}\t{}\t{}\n'
+                         .format(didx, seq_to_mutate[didx], seq[didx]))
+            except ValueError:
+                of.write('NA\n')
 
     prob_seqs = embed_seqs(args, model, prob_seqs, vocabulary,
                            use_cache=False, verbose=verbose)
@@ -232,7 +252,6 @@ def analyze_semantics(args, model, vocabulary, seq_to_mutate, escape_seqs,
         # L1 distance between embedding vectors.
         seq_change[seq] = abs(base_embedding - embedding).sum()
 
-    seqs = np.array([ str(seq) for seq in sorted(seq_prob.keys()) ])
     prob = np.array([ seq_prob[seq] for seq in seqs ])
     change = np.array([ seq_change[seq] for seq in seqs ])
 
@@ -243,8 +262,6 @@ def analyze_semantics(args, model, vocabulary, seq_to_mutate, escape_seqs,
     ])
     viable_idx = np.array([ seq in escape_seqs for seq in seqs ])
 
-    dirname = ('target/{}/semantics/cache'.format(args.namespace))
-    mkdir_p(dirname)
     cache_fname = dirname + ('/plot_{}_{}.npz'
                              .format(args.model_name, args.dim))
     np.savez_compressed(

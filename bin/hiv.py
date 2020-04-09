@@ -171,17 +171,19 @@ def analyze_embedding(args, model, seqs, vocabulary):
         start = batchi * batch_size
         end = (batchi + 1) * batch_size
         seqs_batch = { seq: seqs[seq] for seq in sorted_seqs[start:end] }
-        seqs_batch = embed_seqs(args, model, seqs_batch, vocabulary)
+        seqs_batch = embed_seqs(args, model, seqs_batch, vocabulary,
+                                use_cache=False)
         for seq in seqs_batch:
             for meta in seqs[seq]:
-                meta['embedding'] = seqs_batch[seq][0]['embedding']
+                meta['embedding'] = seqs_batch[seq][0]['embedding'].mean(0)
+        del seqs_batch
 
     X, obs = [], {}
     obs['n_seq'] = []
     obs['seq'] = []
     for seq in seqs:
         meta = seqs[seq][0]
-        X.append(meta['embedding'].mean(0))
+        X.append(meta['embedding'])
         for key in meta:
             if key == 'embedding':
                 continue

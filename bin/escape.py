@@ -38,7 +38,7 @@ def load_lee2018(survival_cutoff=0.05):
                 seqs_escape[escaped].append({
                     'frac_survived': frac_survived,
                     'antibody': antibody,
-                    'significant': frac_survived < survival_cutoff,
+                    'significant': frac_survived > survival_cutoff,
                 })
 
     return seq, seqs_escape
@@ -115,12 +115,13 @@ def load_dingens2019(survival_cutoff=0.05):
                 seqs_escape[escaped].append({
                     'frac_survived': frac_survived,
                     'antibody': antibody,
-                    'significant': frac_survived < survival_cutoff,
+                    'significant': frac_survived > survival_cutoff,
                 })
 
     return seq, seqs_escape
 
 if __name__ == '__main__':
     load_lee2018()
+    exit()
     load_lee2019()
     load_dingens2019()

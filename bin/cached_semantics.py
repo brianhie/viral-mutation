@@ -28,8 +28,8 @@ def cached_escape_semantics(cache_fname, beta, plot=True):
                     cmap='viridis', alpha=0.3)
         plt.scatter(log_escape_prob, log_escape_change, c='red',
                     alpha=0.5, marker='x')
-        plt.xlabel(r'$ \log_{10}(p(x_i)) $')
-        plt.ylabel(r'$ \log_{10}(\Delta \Theta) $')
+        plt.xlabel(r'$ \log_{10}(\hat{p}(x_i | \mathbf{x}_{[N] ∖ \{i\} })) $')
+        plt.ylabel(r'$ \log_{10}(\Delta \mathbf{\hat{z}}) $')
         plt.savefig('figures/flu_acquisition.png', dpi=300)
         plt.close()
 
@@ -39,8 +39,8 @@ def cached_escape_semantics(cache_fname, beta, plot=True):
                     cmap='viridis', alpha=0.3)
         plt.scatter(log_prob[rand_idx], log_change[rand_idx], c='red',
                     alpha=0.5, marker='x')
-        plt.xlabel(r'$ \log_{10}(p(x_i)) $')
-        plt.ylabel(r'$ \log_{10}(\Delta \Theta) $')
+        plt.xlabel(r'$ \log_{10}(\hat{p}(x_i | \mathbf{x}_{[N] ∖ \{i\} })) $')
+        plt.ylabel(r'$ \log_{10}(\Delta \mathbf{\hat{z}}) $')
         plt.savefig('figures/flu_acquisition_rand.png', dpi=300)
         plt.close()
 
@@ -83,10 +83,18 @@ def cached_escape_semantics(cache_fname, beta, plot=True):
         plt.plot(n_consider, n_escape_prob, c='C0', linestyle=':')
         plt.plot(n_consider, n_consider * escape_frac,
                  c='gray', linestyle='--')
+
+        plt.xlabel(r'$ \log_{10}() $')
+        plt.ylabel(r'$ \log_{10}(\Delta \mathbf{\hat{z}}) $')
+
         plt.legend([
-            r'$ \Delta \Theta + \beta p(x_i)$, AUC = {:.3f}'.format(norm_auc),
-            r'$ \Delta \Theta $ only, AUC = {:.3f}'.format(norm_auc_change),
-            r'$ p(x_i) $ only, AUC = {:.3f}'.format(norm_auc_prob),
+            r'$ \Delta \mathbf{\hat{z}} + ' +
+            r'\beta \hat{p}(x_i | \mathbf{x}_{[N] ∖ \{i\} }) $,' +
+            (' AUC = {:.3f}'.format(norm_auc)),
+            r'$  \Delta \mathbf{\hat{z}} $ only,' +
+            (' AUC = {:.3f}'.format(norm_auc_change)),
+            r'$ \hat{p}(x_i | \mathbf{x}_{[N] ∖ \{i\} }) $ only,' +
+            (' AUC = {:.3f}'.format(norm_auc_prob)),
             'Random guessing, AUC = 0.500'
         ])
         plt.xlabel('Top N')
@@ -106,6 +114,4 @@ def cached_escape_semantics(cache_fname, beta, plot=True):
                                   alternative='two-sided')[1]))
 
 if __name__ == '__main__':
-    cached_escape_semantics(
-        'target/flu/semantics/cache/plot.npz', 1.
-    )
+    cached_escape_semantics(sys.argv[1], 1.)
