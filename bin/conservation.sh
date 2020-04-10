@@ -1,13 +1,11 @@
 #for file in target/clusters/*.fa
 #do
-#    /usr/local/bin/mafft --thread 40 --auto --inputorder $file > $file.clustal
+#    /usr/local/bin/mafft --thread 40 --auto --inputorder $file > $file.msa.fa
 #done
 #
 #CONS_DIR=/scratch2/brianhie/conservation_code
-#for file in target/clusters/*.clustal
+#for file in target/clusters/*.msa.fa
 #do
-#    sed -i 's/B/N/g' $file
-#    sed -i 's/J/I/g' $file
 #    python2 $CONS_DIR/score_conservation.py -m $CONS_DIR/matrix/blosum62.bla $file > $file.cons
 #done
 
