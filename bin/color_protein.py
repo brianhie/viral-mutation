@@ -196,7 +196,6 @@ def color_dingens2018():
     of_mean.close()
 
 if __name__ == '__main__':
-    color_dingens2018()
-    exit()
     color_lee2018()
     color_lee2019()
+    color_dingens2018()

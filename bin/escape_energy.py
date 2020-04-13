@@ -80,7 +80,7 @@ def escape_freq(virus):
     elif virus == 'hiv':
         from escape import load_dingens2019
         seq, seqs_escape = load_dingens2019()
-        train_fname = 'target/hiv/clusters/all.fasta'
+        train_fname = 'target/hiv/clusters/all_BG505.fasta'
         mut_fname = 'target/hiv/mutation/mutations_hiv.fa'
         anchor_id = 'A1.KE.-.BG505_W6M_ENV_C2.DQ208458'
     else:
