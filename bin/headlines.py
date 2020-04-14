@@ -175,7 +175,7 @@ if __name__ == '__main__':
     seqs, vocabulary = setup()
     seq_len = max([ len(seq) for seq in seqs ]) + 2
     vocab_size = len(vocabulary) + 2
-    model = get_model(args, seq_len, vocab_size)
+    model = get_model(args, seq_len, vocab_size, batch_size=5)
 
     if args.checkpoint is not None:
         model.model_.load_weights(args.checkpoint)
