@@ -106,9 +106,9 @@ class LSTMLanguageModel(object):
             metrics=[ 'accuracy' ]
         )
 
-        mkdir_p('{}/checkpoints/lstm'.format(self.cache_dir_))
+        mkdir_p('{}/checkpoints.1/lstm'.format(self.cache_dir_))
         checkpoint = ModelCheckpoint(
-            '{}/checkpoints/lstm/lstm_{}'
+            '{}/checkpoints.1/lstm/lstm_{}'
             .format(self.cache_dir_, self.hidden_dim_) +
             '-{epoch:02d}.hdf5',
             save_best_only=False, save_weights_only=False,
