@@ -97,26 +97,6 @@ def split_seqs(seqs, split_method='random'):
 
     return train_seqs, test_seqs
 
-def batch_train_test(args, model, seqs, vocabulary):
-    assert(args.train)
-
-    # Control epochs here.
-    n_epochs = args.n_epochs
-    args.n_epochs = 1
-    model.n_epochs_ = 1
-
-    sorted_seqs = np.array([ str(s) for s in sorted(seqs.keys()) ])
-    batch_size = 10000
-    n_batches = math.ceil(len(sorted_seqs) / float(batch_size))
-
-    for epoch in range(n_epochs):
-        tprint('True epoch {}/{}'.format(epoch + 1, n_epochs))
-        for batchi in range(n_batches):
-            start = batchi * batch_size
-            end = (batchi + 1) * batch_size
-            seqs_batch = { seq: seqs[seq] for seq in sorted_seqs[start:end] }
-            train_test(args, model, seqs_batch, vocabulary)
-
 def setup(args):
     fnames = [ 'data/hiv/HIV-1_env_samelen.fa' ]
     meta_fnames = [ 'data/hiv/HIV-1_env_samelen.fa' ]
@@ -128,7 +108,7 @@ def setup(args):
     seq_len = max([ len(seq) for seq in seqs ]) + 2
     vocab_size = len(AAs) + 2
 
-    model = get_model(args, seq_len, vocab_size, batch_size=500)
+    model = get_model(args, seq_len, vocab_size, batch_size=32)
 
     return model, seqs
 
@@ -226,11 +206,8 @@ if __name__ == '__main__':
         tprint('Model summary:')
         tprint(model.model_.summary())
 
-    if args.train_split or args.test:
+    if args.train or args.train_split or args.test:
         train_test(args, model, seqs, vocabulary, split_seqs)
-
-    if args.train:
-        batch_train_test(args, model, seqs, vocabulary)
 
     if args.embed:
         if args.checkpoint is None and not args.train:

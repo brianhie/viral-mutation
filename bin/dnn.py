@@ -16,14 +16,11 @@ class DNNLanguageModel(object):
             n_epochs=1,
             batch_size=1000,
             cache_dir='.',
-            fp_precision='float32',
             verbose=False
     ):
         config = tf.ConfigProto()
         config.gpu_options.allow_growth = True
         K.tensorflow_backend.set_session(tf.Session(config=config))
-        if fp_precision != K.floatx():
-            K.set_floatx(fp_precision)
 
         input_pre = Input(shape=(seq_len - 1,))
         input_post = Input(shape=(seq_len - 1,))

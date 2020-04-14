@@ -4,7 +4,7 @@ from lstm import *
 from lstm import _iterate_lengths
 
 from keras.models import Model
-from keras.layers import concatenate, Input
+from keras.layers import Concatenate, Input, Lambda
 
 def _split_and_pad(X_cat, lengths, seq_len, vocab_size, verbose):
     if X_cat.shape[0] != sum(lengths):
@@ -17,31 +17,17 @@ def _split_and_pad(X_cat, lengths, seq_len, vocab_size, verbose):
         X_cat[start:end].flatten()
         for start, end in _iterate_lengths(lengths, seq_len)
     ]
-    X_pre = [
-        X_seq[:i] for X_seq in X_seqs for i in range(len(X_seq))
-    ]
-    X_post = [
-        X_seq[i + 1:] for X_seq in X_seqs for i in range(len(X_seq))
-    ]
-    y = np.array([
-        X_seq[i] for X_seq in X_seqs for i in range(len(X_seq))
-    ])
 
     if verbose > 1:
-        tprint('Padding {} splitted...'.format(len(X_pre)))
-    X_pre = pad_sequences(
-        X_pre, maxlen=seq_len - 1,
+        tprint('Padding {} splitted...'.format(len(X_seqs)))
+    padded = pad_sequences(
+        X_seqs, maxlen=seq_len,
         dtype='int32', padding='pre', truncating='pre', value=0
     )
-    if verbose > 1:
-        tprint('Padding {} splitted again...'.format(len(X_pre)))
-    X_post = pad_sequences(
-        X_post, maxlen=seq_len - 1,
-        dtype='int32', padding='post', truncating='post', value=0
-    )
-    if verbose > 1:
-        tprint('Flipping...')
-    X_post = np.flip(X_post, 1)
+    X_pre = padded[:, :-2]
+    X_post = padded[:, 2:]
+    y = padded[:, 1:-1, None]
+
     X = [ X_pre, X_post ]
 
     if verbose > 1:
@@ -59,34 +45,36 @@ class BiLSTMLanguageModel(object):
             n_epochs=1,
             batch_size=1000,
             cache_dir='.',
-            fp_precision='float32',
             verbose=False
     ):
         config = tf.ConfigProto()
         config.gpu_options.allow_growth = True
         K.tensorflow_backend.set_session(tf.Session(config=config))
-        if fp_precision != K.floatx():
-            K.set_floatx(fp_precision)
 
-        input_pre = Input(shape=(seq_len - 1,))
-        input_post = Input(shape=(seq_len - 1,))
+        input_pre = Input(shape=(seq_len - 2,))
+        input_post = Input(shape=(seq_len - 2,))
 
         embed = Embedding(vocab_size + 1, embedding_dim,
-                          input_length=seq_len - 1)
+                          input_length=seq_len - 2)
         x_pre = embed(input_pre)
         x_post = embed(input_post)
 
-        for _ in range(n_hidden - 1):
+        for _ in range(n_hidden):
             lstm = LSTM(hidden_dim, return_sequences=True)
             x_pre = lstm(x_pre)
             x_post = lstm(x_post)
-        lstm = LSTM(hidden_dim)
-        x_pre = lstm(x_pre)
-        x_post = lstm(x_post)
 
-        x = concatenate([ x_pre, x_post ])
+        x_post = Lambda(
+            lambda x: K.reverse(x, axes=1),
+            output_shape=(seq_len - 2, hidden_dim),
+        )(x_post)
 
-        output = Dense(vocab_size + 1, activation='softmax')(x)
+        x = Concatenate(axis=2)([ x_pre, x_post ])
+
+        output = TimeDistributed(
+            Dense(vocab_size + 1, activation='softmax'),
+            input_shape=(seq_len - 2, 2 * hidden_dim),
+        )(x)
 
         self.model_ = Model(inputs=[ input_pre, input_post ],
                             outputs=output)
