@@ -67,10 +67,10 @@ class DNNLanguageModel(object):
             metrics=[ 'accuracy' ]
         )
 
-        mkdir_p('{}/checkpoints.1/dnn'.format(self.cache_dir_))
+        mkdir_p('{}/checkpoints.old/dnn'.format(self.cache_dir_))
         model_name = 'dnn'
         checkpoint = ModelCheckpoint(
-            '{}/checkpoints.1/dnn/{}_{}'
+            '{}/checkpoints.old/dnn/{}_{}'
             .format(self.cache_dir_, model_name, self.hidden_dim_) +
             '-{epoch:02d}.hdf5',
             save_best_only=False, save_weights_only=False,
