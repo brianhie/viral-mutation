@@ -228,5 +228,10 @@ if __name__ == '__main__':
         tprint('Dingens et al. 2019...')
         seq_to_mutate, escape_seqs = load_dingens2019()
 
-        analyze_semantics(args, model, vocabulary, seq_to_mutate, escape_seqs,
-                          prob_cutoff=0., beta=1., plot_acquisition=True,)
+        cache_fname = ('target/hiv/semantics/cache/plot_{}_{}.npz'
+                       .format(args.model_name, args.dim))
+        analyze_semantics(
+            args, model, vocabulary, seq_to_mutate, escape_seqs,
+            prob_cutoff=0., beta=1., plot_acquisition=True,
+            cache_fname=cache_fname,
+        )

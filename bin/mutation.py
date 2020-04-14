@@ -147,11 +147,11 @@ def embed_seqs(args, model, seqs, vocabulary,
     hidden = load_hidden_model(args, model)
 
     if args.model_name == 'lstm':
-        from lstm import _iterate_lengths, _split_and_pad
+        from lstm import _split_and_pad
     elif args.model_name == 'bilstm':
-        from bilstm import _iterate_lengths, _split_and_pad
+        from bilstm import _split_and_pad
     elif args.model_name == 'dnn':
-        from dnn import _iterate_lengths, _split_and_pad
+        from dnn import _split_and_pad
     else:
         raise ValueError('No embedding support for model {}'
                          .format(args.model_name))
@@ -173,21 +173,24 @@ def embed_seqs(args, model, seqs, vocabulary,
             np.save(embed_fname, embed_cat)
         if verbose:
             tprint('Done embedding.')
+    assert(embed_cat.shape[0] == X.shape[0] == len(seqs))
 
     sorted_seqs = sorted(seqs)
-    for seq, (start, end) in zip(
-            sorted_seqs, _iterate_lengths(lengths, model.seq_len_)):
-        embedding = embed_cat[start:end]
+    for seq_idx, seq in enumerate(sorted_seqs):
+        embedding = embed_cat[seq_idx]
         for meta in seqs[seq]:
             meta['embedding'] = embedding
 
     return seqs
 
-def analyze_semantics(args, model, vocabulary, seq_to_mutate, escape_seqs,
-                      prob_cutoff=0., beta=1., plot_acquisition=True,
-                      verbose=True):
-    dirname = ('target/{}/semantics/cache'.format(args.namespace))
-    mkdir_p(dirname)
+def analyze_semantics(
+        args, model, vocabulary, seq_to_mutate, escape_seqs,
+        prob_cutoff=0., beta=1., plot_acquisition=True,
+        cache_fname=None, verbose=True
+):
+    if cache_fname is not None:
+        dirname = ('target/{}/semantics/cache'.format(args.namespace))
+        mkdir_p(dirname)
 
     seqs = { seq_to_mutate: [ {} ] }
     X_cat, lengths = featurize_seqs(seqs, vocabulary)
@@ -203,14 +206,15 @@ def analyze_semantics(args, model, vocabulary, seq_to_mutate, escape_seqs,
     X = _split_and_pad(X_cat, lengths, model.seq_len_,
                        model.vocab_size_, verbose)[0]
     y_pred = model.model_.predict(X, batch_size=2500)
-    assert(y_pred.shape[0] == len(seq_to_mutate) + 2)
-    #assert(y_pred.shape[1] == len(AAs) + 3)
+    assert(y_pred.shape[0] == 1)
+    assert(y_pred.shape[1] == len(seq_to_mutate))
+    assert(y_pred.shape[2] == model.vocab_size_ + 1)
 
     word_pos_prob = {}
     for i in range(len(seq_to_mutate)):
         for word in vocabulary:
             word_idx = vocabulary[word]
-            prob = y_pred[i + 1, word_idx]
+            prob = y_pred[0, i + 1, word_idx]
             if prob < prob_cutoff:
                 continue
             word_pos_prob[(word, i)] = prob
@@ -226,18 +230,20 @@ def analyze_semantics(args, model, vocabulary, seq_to_mutate, escape_seqs,
 
     seqs = np.array([ str(seq) for seq in sorted(seq_prob.keys()) ])
 
-    ofname = dirname + '/{}_mutations.txt'.format(args.namespace)
-    with open(ofname, 'w') as of:
-        of.write('orig\tmutant\n')
-        for seq in seqs:
-            try:
-                didx = [
-                    c1 != c2 for c1, c2 in zip(seq_to_mutate, seq)
-                ].index(True)
-                of.write('{}\t{}\t{}\n'
-                         .format(didx, seq_to_mutate[didx], seq[didx]))
-            except ValueError:
-                of.write('NA\n')
+    if cache_fname is not None:
+        ofname = dirname + '/{}_mutations.txt'.format(args.namespace)
+        with open(ofname, 'w') as of:
+            of.write('orig\tmutant\n')
+            for seq in seqs:
+                try:
+                    didx = [
+                        c1 != c2 for c1, c2 in zip(seq_to_mutate, seq)
+                    ].index(True)
+                    of.write('{}\t{}\t{}\n'
+                             .format(didx, seq_to_mutate[didx],
+                                     seq[didx]))
+                except ValueError:
+                    of.write('NA\n')
 
     prob_seqs = embed_seqs(args, model, prob_seqs, vocabulary,
                            use_cache=False, verbose=verbose)
@@ -258,12 +264,13 @@ def analyze_semantics(args, model, vocabulary, seq_to_mutate, escape_seqs,
     ])
     viable_idx = np.array([ seq in escape_seqs for seq in seqs ])
 
-    cache_fname = dirname + ('/plot_{}_{}.npz'
-                             .format(args.model_name, args.dim))
-    np.savez_compressed(
-        cache_fname, prob=prob, change=change,
-        escape_idx=escape_idx, viable_idx=viable_idx,
-    )
-    from cached_semantics import cached_escape_semantics
-    cached_escape_semantics(cache_fname, beta,
-                            plot=plot_acquisition)
+    if cache_fname is not None:
+        np.savez_compressed(
+            cache_fname, prob=prob, change=change,
+            escape_idx=escape_idx, viable_idx=viable_idx,
+        )
+        from cached_semantics import cached_escape_semantics
+        cached_escape_semantics(cache_fname, beta,
+                                plot=plot_acquisition)
+
+    return seqs, prob, change, escape_idx, viable_idx

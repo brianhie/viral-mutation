@@ -241,7 +241,7 @@ if __name__ == '__main__':
     AAs = [
         'A', 'R', 'N', 'D', 'C', 'Q', 'E', 'G', 'H',
         'I', 'L', 'K', 'M', 'F', 'P', 'S', 'T', 'W',
-        'Y', 'V', 'X', 'Z', 'J', 'U', 'B', 'Z'
+        'Y', 'V', 'X', 'Z', 'J', 'U', 'B',
     ]
     vocabulary = { aa: idx + 1 for idx, aa in enumerate(sorted(AAs)) }
 
@@ -274,13 +274,21 @@ if __name__ == '__main__':
 
         tprint('Lee et al. 2018...')
         seq_to_mutate, escape_seqs = load_lee2018()
-        analyze_semantics(args, model, vocabulary, seq_to_mutate, escape_seqs,
-                          prob_cutoff=0., beta=1., plot_acquisition=True,)
+        cache_fname = ('target/flu/semantics/cache/plot_h1_{}_{}.npz'
+                       .format(args.model_name, args.dim))
+        analyze_semantics(
+            args, model, vocabulary, seq_to_mutate, escape_seqs,
+            prob_cutoff=0., beta=1., plot_acquisition=True,
+            cache_fname=cache_fname,
+        )
         tprint('')
-
-        exit()
 
         tprint('Lee et al. 2019...')
         seq_to_mutate, escape_seqs = load_lee2019()
-        analyze_semantics(args, model, vocabulary, seq_to_mutate, escape_seqs,
-                          prob_cutoff=0., beta=1., plot_acquisition=True,)
+        cache_fname = ('target/flu/semantics/cache/plot_h3_{}_{}.npz'
+                       .format(args.model_name, args.dim))
+        analyze_semantics(
+            args, model, vocabulary, seq_to_mutate, escape_seqs,
+            prob_cutoff=0., beta=1., plot_acquisition=True,
+            cache_fname=cache_fname,
+        )
