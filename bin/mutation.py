@@ -173,7 +173,7 @@ def embed_seqs(args, model, seqs, vocabulary,
             np.save(embed_fname, embed_cat)
         if verbose:
             tprint('Done embedding.')
-    assert(embed_cat.shape[0] == X.shape[0] == len(seqs))
+    assert(embed_cat.shape[0] == len(seqs))
 
     sorted_seqs = sorted(seqs)
     for seq_idx, seq in enumerate(sorted_seqs):
@@ -207,14 +207,15 @@ def analyze_semantics(
                        model.vocab_size_, verbose)[0]
     y_pred = model.model_.predict(X, batch_size=2500)
     assert(y_pred.shape[0] == 1)
-    assert(y_pred.shape[1] == len(seq_to_mutate))
+    assert(y_pred.shape[1] == model.seq_len_ - 2)
     assert(y_pred.shape[2] == model.vocab_size_ + 1)
 
+    start_pos = model.seq_len_ - X_cat.shape[0]
     word_pos_prob = {}
     for i in range(len(seq_to_mutate)):
         for word in vocabulary:
             word_idx = vocabulary[word]
-            prob = y_pred[0, i + 1, word_idx]
+            prob = y_pred[0, start_pos + i, word_idx]
             if prob < prob_cutoff:
                 continue
             word_pos_prob[(word, i)] = prob
