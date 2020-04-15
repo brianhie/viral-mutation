@@ -272,13 +272,13 @@ if __name__ == '__main__':
 
         from escape import load_lee2018, load_lee2019
 
-        tprint('Lee et al. 2018...')
-        seq_to_mutate, escape_seqs = load_lee2018()
-        analyze_semantics(args, model, vocabulary, seq_to_mutate, escape_seqs,
-                          prob_cutoff=0., beta=1., plot_acquisition=True,)
-        tprint('')
-
-        exit()
+        #tprint('Lee et al. 2018...')
+        #seq_to_mutate, escape_seqs = load_lee2018()
+        #analyze_semantics(args, model, vocabulary, seq_to_mutate, escape_seqs,
+        #                  prob_cutoff=0., beta=1., plot_acquisition=True,)
+        #tprint('')
+        #
+        #exit()
 
         tprint('Lee et al. 2019...')
         seq_to_mutate, escape_seqs = load_lee2019()

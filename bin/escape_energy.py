@@ -37,7 +37,7 @@ def escape_energy(virus):
     assert(len(escape_idx) == len(seqs_escape) - 1)
 
     mut_energies = energies[len(train_seqs):]
-    acq_argsort = ss.rankdata(mut_energies)
+    acq_argsort = ss.rankdata(-mut_energies)
     escape_rank_dist = acq_argsort[escape_idx]
 
     max_consider = len(mut_seqs)
@@ -145,6 +145,6 @@ def escape_freq(virus):
     plt.close()
 
 if __name__ == '__main__':
-    escape_freq(sys.argv[1])
-    exit()
     escape_energy(sys.argv[1])
+    exit()
+    escape_freq(sys.argv[1])
