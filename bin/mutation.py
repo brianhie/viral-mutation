@@ -189,7 +189,7 @@ def embed_seqs(args, model, seqs, vocabulary,
 
 def analyze_semantics(args, model, vocabulary, seq_to_mutate, escape_seqs,
                       prob_cutoff=0., beta=1., plot_acquisition=True,
-                      verbose=True):
+                      verbose=True,):
     dirname = ('target/{}/semantics/cache'.format(args.namespace))
     mkdir_p(dirname)
 
@@ -270,4 +270,5 @@ def analyze_semantics(args, model, vocabulary, seq_to_mutate, escape_seqs,
     )
     from cached_semantics import cached_escape_semantics
     cached_escape_semantics(cache_fname, beta,
-                            plot=plot_acquisition)
+                            plot=plot_acquisition,
+                            namespace=args.namespace)
