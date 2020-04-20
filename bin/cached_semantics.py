@@ -2,7 +2,8 @@ from utils import *
 
 from sklearn.metrics import auc
 
-def cached_escape_semantics(cache_fname, beta, plot=True):
+def cached_escape_semantics(cache_fname, beta, plot=True,
+                            namespace='semantics'):
     data = np.load(cache_fname)
     prob = data['prob']
     change = data['change']
@@ -30,7 +31,8 @@ def cached_escape_semantics(cache_fname, beta, plot=True):
                     alpha=0.5, marker='x')
         plt.xlabel(r'$ \log_{10}(\hat{p}(x_i | \mathbf{x}_{[N] ∖ \{i\} })) $')
         plt.ylabel(r'$ \log_{10}(\Delta \mathbf{\hat{z}}) $')
-        plt.savefig('figures/flu_acquisition.png', dpi=300)
+        plt.savefig('figures/{}_acquisition.png'
+                    .format(namespace), dpi=300)
         plt.close()
 
         rand_idx = np.random.choice(len(prob), len(escape_prob))
@@ -41,7 +43,8 @@ def cached_escape_semantics(cache_fname, beta, plot=True):
                     alpha=0.5, marker='x')
         plt.xlabel(r'$ \log_{10}(\hat{p}(x_i | \mathbf{x}_{[N] ∖ \{i\} })) $')
         plt.ylabel(r'$ \log_{10}(\Delta \mathbf{\hat{z}}) $')
-        plt.savefig('figures/flu_acquisition_rand.png', dpi=300)
+        plt.savefig('figures/{}_acquisition_rand.png'
+                    .format(namespace), dpi=300)
         plt.close()
 
     acq_argsort = ss.rankdata(-acquisition)
@@ -99,7 +102,8 @@ def cached_escape_semantics(cache_fname, beta, plot=True):
         ])
         plt.xlabel('Top N')
         plt.ylabel('Number of escape mutations in top N')
-        plt.savefig('figures/flu_consider_escape.png', dpi=300)
+        plt.savefig('figures/{}_consider_escape.png'
+                    .format(namespace), dpi=300)
         plt.close()
 
     print('{:.4g} (mean log prob), {:.4g} (mean log prob escape), '

@@ -41,28 +41,49 @@ def load_meta(meta_fnames):
                     continue
                 accession = line[1:].rstrip()
                 fields = line.rstrip().split('.')
-                country, year, strain = fields[1], fields[2], fields[3]
+                subtype, country, year, strain = (
+                    fields[0], fields[1], fields[2], fields[3]
+                )
+
                 if year == '-':
                     year = None
                 else:
                     year = int(year)
+
+                subtype = subtype.split('_')[-1]
+                subtype = subtype.lstrip('>0123')
+
+                keep_subtypes = {
+                    'A', 'A1', 'A1A2', 'A1C', 'A1D', 'A2', 'A3', 'A6',
+                    'AE', 'AG', 'B', 'C', 'BC', 'D',
+                    'F', 'F1', 'F2', 'G', 'H', 'J',
+                    'K', 'L', 'N', 'O', 'P', 'U',
+                }
+                if subtype not in keep_subtypes:
+                    subtype = 'Other'
+
                 metas[accession] = {
+                    'subtype': subtype,
                     'country': country,
                     'year': year,
                     'strain': strain,
                 }
     return metas
 
-def process(fnames, meta_fnames):
+def process(args, fnames, meta_fnames):
     metas = load_meta(meta_fnames)
 
     seqs = {}
     for fname in fnames:
         for record in SeqIO.parse(fname, 'fasta'):
-            if record.seq not in seqs:
-                seqs[record.seq] = []
             accession = record.description
             meta = metas[accession]
+            meta['seqlen'] = len(str(record.seq))
+            if args.namespace == 'hiva' and \
+               (not meta['subtype'].startswith('A')):
+                continue
+            if record.seq not in seqs:
+                seqs[record.seq] = []
             seqs[record.seq].append(meta)
 
     return seqs
@@ -103,7 +124,7 @@ def setup(args):
 
     with warnings.catch_warnings():
         warnings.simplefilter('ignore', BiopythonWarning)
-        seqs = process(fnames, meta_fnames)
+        seqs = process(args, fnames, meta_fnames)
 
     seq_len = max([ len(seq) for seq in seqs ]) + 2
     vocab_size = len(AAs) + 2
@@ -136,16 +157,18 @@ def seq_clusters(adata):
 
 def plot_umap(adata):
     sc.tl.umap(adata, min_dist=1.)
-    sc.pl.umap(adata, color='year', save='_year.png')
-    sc.pl.umap(adata, color='country', save='_country.png')
-    sc.pl.umap(adata, color='strain', save='_strain.png')
-    sc.pl.umap(adata, color='louvain', save='_louvain.png')
-    sc.pl.umap(adata, color='n_seq', save='_number.png',
+    sc.pl.umap(adata, color='year', save='_hiv_year.png')
+    sc.pl.umap(adata, color='seqlen', save='_hiv_seqlen.png')
+    sc.pl.umap(adata, color='louvain', save='_hiv_louvain.png')
+    sc.pl.umap(adata, color='subtype', save='_hiv_subtype.png')
+    sc.pl.umap(adata, color='country', save='_hiv_country.png')
+    sc.pl.umap(adata, color='n_seq', save='_hiv_number.png',
                s=np.log(np.array(adata.obs['n_seq']) * 100) + 1)
+    #sc.pl.umap(adata, color='strain', save='_hiv_strain.png')
 
 def analyze_embedding(args, model, seqs, vocabulary):
     sorted_seqs = np.array([ str(s) for s in sorted(seqs.keys()) ])
-    batch_size = 10000
+    batch_size = 3000
     n_batches = math.ceil(len(sorted_seqs) / float(batch_size))
     for batchi in range(n_batches):
         start = batchi * batch_size
@@ -180,7 +203,7 @@ def analyze_embedding(args, model, seqs, vocabulary):
     for key in obs:
         adata.obs[key] = obs[key]
 
-    sc.pp.neighbors(adata, n_neighbors=100, use_rep='X')
+    sc.pp.neighbors(adata, n_neighbors=200, use_rep='X')
     sc.tl.louvain(adata, resolution=1.)
 
     sc.set_figure_params(dpi_save=500)

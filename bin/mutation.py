@@ -272,6 +272,7 @@ def analyze_semantics(
         )
         from cached_semantics import cached_escape_semantics
         cached_escape_semantics(cache_fname, beta,
-                                plot=plot_acquisition)
+                                plot=plot_acquisition,
+                                namespace=args.namespace)
 
     return seqs, prob, change, escape_idx, viable_idx
