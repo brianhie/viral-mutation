@@ -187,13 +187,9 @@ def embed_seqs(args, model, seqs, vocabulary,
 
     return seqs
 
-def analyze_semantics(args, model, vocabulary, seq_to_mutate, escape_seqs,
-                      prob_cutoff=0., beta=1., plot_acquisition=True,
-                      verbose=True,):
-    dirname = ('target/{}/semantics/cache'.format(args.namespace))
-    mkdir_p(dirname)
-
-    seqs = { seq_to_mutate: [ {} ] }
+def predict_sequence_prob(args, seq_of_interest, vocabulary, model,
+                          verbose=False):
+    seqs = { seq_of_interest: [ {} ] }
     X_cat, lengths = featurize_seqs(seqs, vocabulary)
 
     if args.model_name == 'lstm':
@@ -201,14 +197,26 @@ def analyze_semantics(args, model, vocabulary, seq_to_mutate, escape_seqs,
     elif args.model_name == 'bilstm':
         from bilstm import _split_and_pad
     else:
-        raise ValueError('No semantics support for model {}'
+        raise ValueError('No combinatorial fitness '
+                         'support for model {}'
                          .format(args.model_name))
 
     X = _split_and_pad(X_cat, lengths, model.seq_len_,
                        model.vocab_size_, verbose)[0]
     y_pred = model.model_.predict(X, batch_size=2500)
-    assert(y_pred.shape[0] == len(seq_to_mutate) + 2)
-    #assert(y_pred.shape[1] == len(AAs) + 3)
+    assert(y_pred.shape[0] == len(seq_of_interest) + 2)
+
+    return y_pred
+
+def analyze_semantics(args, model, vocabulary, seq_to_mutate, escape_seqs,
+                      prob_cutoff=0., beta=1., plot_acquisition=True,
+                      verbose=True,):
+    dirname = ('target/{}/semantics/cache'.format(args.namespace))
+    mkdir_p(dirname)
+
+    y_pred = predict_sequence_prob(
+        args, seq_to_mutate, vocabulary, model, verbose=verbose
+    )
 
     word_pos_prob = {}
     for i in range(len(seq_to_mutate)):
@@ -222,7 +230,6 @@ def analyze_semantics(args, model, vocabulary, seq_to_mutate, escape_seqs,
     prob_sorted = sorted(word_pos_prob.items(), key=lambda x: -x[1])
     prob_seqs = { seq_to_mutate: [ {} ] }
     seq_prob = {}
-    seqs = []
     for (word, pos), prob in prob_sorted:
         mutable = seq_to_mutate[:pos] + word + seq_to_mutate[pos + 1:]
         prob_seqs[mutable] = [ {} ]
