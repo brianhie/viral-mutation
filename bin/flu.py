@@ -31,6 +31,8 @@ def parse_args():
                         help='Analyze mutational semantic change')
     parser.add_argument('--combfit', action='store_true',
                         help='Analyze combinatorial fitness')
+    parser.add_argument('--evolve', action='store_true',
+                        help='Evolve a sequence')
     args = parser.parse_args()
     return args
 
@@ -291,12 +293,35 @@ def analyze_comb_fitness(
 
     plt.figure()
     plt.scatter(df.preference, df.predicted, alpha=0.3)
+    plt.ylim([ -27., 1. ])
     plt.title(strain)
     plt.xlabel('Preference')
     plt.ylabel('Predicted')
     plt.savefig('figures/combinatorial_fitness_{}.png'.format(strain),
                 dpi=300)
     plt.close()
+
+def evolve(args, model, vocabulary, start_seq,
+           n_timesteps=100, prob_cutoff=5e-4,
+           beta=0.1, gamma_shape=1., gamma_scale=5.,
+           verbose=True):
+    tprint('Seq at t = 0:')
+    tprint(start_seq)
+    curr_seq = start_seq
+    for time in range(n_timesteps):
+        seqs, prob, change, _, _ = analyze_semantics(
+            args, model, vocabulary, curr_seq, {},
+            prob_cutoff=prob_cutoff, beta=beta,
+            plot_acquisition=False, verbose=verbose
+        )
+        acquisition = ss.rankdata(change) + (beta * ss.rankdata(prob))
+        argsort = np.argsort(-acquisition)
+        assert(argsort[0] == np.argmax(acquisition))
+        argsort_idx = math.floor(np.random.gamma(gamma_shape, gamma_scale))
+        acq_idx = argsort[argsort_idx]
+        curr_seq = seqs[acq_idx]
+        tprint('Seq at t = {}:'.format(time + 1))
+        tprint(curr_seq)
 
 if __name__ == '__main__':
     args = parse_args()
@@ -357,3 +382,11 @@ if __name__ == '__main__':
             analyze_comb_fitness(args, model, vocabulary,
                                  strain, wt_seqs[strain], seqs_fitness,
                                  prob_cutoff=0., beta=1.)
+
+    if args.evolve:
+        from escape import load_lee2019
+        start_seq = load_lee2019()[0]
+        for beta in [ 0., 0.1, 0.25, 1. ]:
+            tprint('\nBeta = {}\n'.format(beta))
+            evolve(args, model, vocabulary, start_seq,
+                   n_timesteps=100, prob_cutoff=5e-4, beta=beta,)

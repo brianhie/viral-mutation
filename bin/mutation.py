@@ -211,8 +211,9 @@ def predict_sequence_prob(args, seq_of_interest, vocabulary, model,
 def analyze_semantics(args, model, vocabulary, seq_to_mutate, escape_seqs,
                       prob_cutoff=0., beta=1., plot_acquisition=True,
                       verbose=True,):
-    dirname = ('target/{}/semantics/cache'.format(args.namespace))
-    mkdir_p(dirname)
+    if plot_acquisition:
+        dirname = ('target/{}/semantics/cache'.format(args.namespace))
+        mkdir_p(dirname)
 
     y_pred = predict_sequence_prob(
         args, seq_to_mutate, vocabulary, model, verbose=verbose
@@ -237,18 +238,19 @@ def analyze_semantics(args, model, vocabulary, seq_to_mutate, escape_seqs,
 
     seqs = np.array([ str(seq) for seq in sorted(seq_prob.keys()) ])
 
-    ofname = dirname + '/{}_mutations.txt'.format(args.namespace)
-    with open(ofname, 'w') as of:
-        of.write('orig\tmutant\n')
-        for seq in seqs:
-            try:
-                didx = [
-                    c1 != c2 for c1, c2 in zip(seq_to_mutate, seq)
-                ].index(True)
-                of.write('{}\t{}\t{}\n'
-                         .format(didx, seq_to_mutate[didx], seq[didx]))
-            except ValueError:
-                of.write('NA\n')
+    if plot_acquisition:
+        ofname = dirname + '/{}_mutations.txt'.format(args.namespace)
+        with open(ofname, 'w') as of:
+            of.write('orig\tmutant\n')
+            for seq in seqs:
+                try:
+                    didx = [
+                        c1 != c2 for c1, c2 in zip(seq_to_mutate, seq)
+                    ].index(True)
+                    of.write('{}\t{}\t{}\n'
+                             .format(didx, seq_to_mutate[didx], seq[didx]))
+                except ValueError:
+                    of.write('NA\n')
 
     prob_seqs = embed_seqs(args, model, prob_seqs, vocabulary,
                            use_cache=False, verbose=verbose)
@@ -269,13 +271,16 @@ def analyze_semantics(args, model, vocabulary, seq_to_mutate, escape_seqs,
     ])
     viable_idx = np.array([ seq in escape_seqs for seq in seqs ])
 
-    cache_fname = dirname + ('/plot_{}_{}.npz'
-                             .format(args.model_name, args.dim))
-    np.savez_compressed(
-        cache_fname, prob=prob, change=change,
-        escape_idx=escape_idx, viable_idx=viable_idx,
-    )
-    from cached_semantics import cached_escape_semantics
-    cached_escape_semantics(cache_fname, beta,
-                            plot=plot_acquisition,
-                            namespace=args.namespace)
+    if plot_acquisition:
+        cache_fname = dirname + ('/plot_{}_{}.npz'
+                                 .format(args.model_name, args.dim))
+        np.savez_compressed(
+            cache_fname, prob=prob, change=change,
+            escape_idx=escape_idx, viable_idx=viable_idx,
+        )
+        from cached_semantics import cached_escape_semantics
+        cached_escape_semantics(cache_fname, beta,
+                                plot=plot_acquisition,
+                                namespace=args.namespace)
+
+    return seqs, prob, change, escape_idx, viable_idx
