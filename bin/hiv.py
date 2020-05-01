@@ -41,12 +41,29 @@ def load_meta(meta_fnames):
                     continue
                 accession = line[1:].rstrip()
                 fields = line.rstrip().split('.')
-                country, year, strain = fields[1], fields[2], fields[3]
+                subtype, country, year, strain = (
+                    fields[0], fields[1], fields[2], fields[3]
+                )
+
                 if year == '-':
                     year = None
                 else:
                     year = int(year)
+
+                subtype = subtype.split('_')[-1]
+                subtype = subtype.lstrip('>0123')
+
+                keep_subtypes = {
+                    'A', 'A1', 'A1A2', 'A1C', 'A1D', 'A2', 'A3', 'A6',
+                    'AE', 'AG', 'B', 'C', 'BC', 'D',
+                    'F', 'F1', 'F2', 'G', 'H', 'J',
+                    'K', 'L', 'N', 'O', 'P', 'U',
+                }
+                if subtype not in keep_subtypes:
+                    subtype = 'Other'
+
                 metas[accession] = {
+                    'subtype': subtype,
                     'country': country,
                     'year': year,
                     'strain': strain,
@@ -59,10 +76,14 @@ def process(fnames, meta_fnames):
     seqs = {}
     for fname in fnames:
         for record in SeqIO.parse(fname, 'fasta'):
-            if record.seq not in seqs:
-                seqs[record.seq] = []
             accession = record.description
             meta = metas[accession]
+            meta['seqlen'] = len(str(record.seq))
+            if args.namespace == 'hiva' and \
+               (not meta['subtype'].startswith('A')):
+                continue
+            if record.seq not in seqs:
+                seqs[record.seq] = []
             seqs[record.seq].append(meta)
 
     return seqs
@@ -144,23 +165,14 @@ def interpret_clusters(adata):
                 tprint('\t\t{}: {}'.format(val, count))
         tprint('')
 
-def seq_clusters(adata):
-    clusters = sorted(set(adata.obs['louvain']))
-    for cluster in clusters:
-        adata_cluster = adata[adata.obs['louvain'] == cluster]
-        counts = Counter(adata_cluster.obs['seq'])
-        with open('target/clusters/cluster{}.fa'.format(cluster), 'w') as of:
-            for i, (seq, count) in enumerate(counts.most_common()):
-                of.write('>cluster{}_{}_{}\n'.format(cluster, i, count))
-                of.write(seq + '\n\n')
-
 def plot_umap(adata):
     sc.tl.umap(adata, min_dist=1.)
-    sc.pl.umap(adata, color='year', save='_year.png')
-    sc.pl.umap(adata, color='country', save='_country.png')
-    sc.pl.umap(adata, color='strain', save='_strain.png')
-    sc.pl.umap(adata, color='louvain', save='_louvain.png')
-    sc.pl.umap(adata, color='n_seq', save='_number.png',
+    sc.pl.umap(adata, color='year', save='_hiv_year.png')
+    sc.pl.umap(adata, color='seqlen', save='_hiv_seqlen.png')
+    sc.pl.umap(adata, color='louvain', save='_hiv_louvain.png')
+    sc.pl.umap(adata, color='subtype', save='_hiv_subtype.png')
+    sc.pl.umap(adata, color='country', save='_hiv_country.png')
+    sc.pl.umap(adata, color='n_seq', save='_hiv_number.png',
                s=np.log(np.array(adata.obs['n_seq']) * 100) + 1)
 
 def analyze_embedding(args, model, seqs, vocabulary):
@@ -207,7 +219,6 @@ def analyze_embedding(args, model, seqs, vocabulary):
     plot_umap(adata)
 
     interpret_clusters(adata)
-    #seq_clusters(adata)
 
 if __name__ == '__main__':
     args = parse_args()
