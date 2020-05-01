@@ -302,7 +302,7 @@ def analyze_comb_fitness(
     plt.close()
 
 def evolve(args, model, vocabulary, start_seq,
-           n_timesteps=100, prob_cutoff=5e-4,
+           n_timesteps=100, prob_cutoff=1e-3,
            beta=0.1, gamma_shape=1., gamma_scale=5.,
            verbose=True):
     tprint('Seq at t = 0:')
@@ -389,4 +389,4 @@ if __name__ == '__main__':
         for beta in [ 0., 0.1, 0.25, 1. ]:
             tprint('\nBeta = {}\n'.format(beta))
             evolve(args, model, vocabulary, start_seq,
-                   n_timesteps=100, prob_cutoff=5e-4, beta=beta,)
+                   n_timesteps=100, prob_cutoff=1e-3, beta=beta,)
