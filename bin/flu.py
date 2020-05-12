@@ -237,6 +237,14 @@ def analyze_embedding(args, model, seqs, vocabulary):
     plot_umap_time(adata_human)
 
     interpret_clusters(adata)
+
+    from sklearn.metrics import adjusted_mutual_info_score as AMI
+    tprint('AMI, Louvain and subtype: {}'
+           .format(AMI(adata.obs['louvain'],
+                       adata.obs['Subtype'])))
+    tprint('AMI, Louvain and host species: {}'
+           .format(AMI(adata.obs['louvain'],
+                       adata.obs['Host Species'])))
     #seq_clusters(adata)
 
 def analyze_comb_fitness(
@@ -360,13 +368,13 @@ if __name__ == '__main__':
 
         from escape import load_lee2018, load_lee2019
 
-        #tprint('Lee et al. 2018...')
-        #seq_to_mutate, escape_seqs = load_lee2018()
-        #analyze_semantics(args, model, vocabulary, seq_to_mutate, escape_seqs,
-        #                  prob_cutoff=0., beta=1., plot_acquisition=True,)
-        #tprint('')
-        #
-        #exit()
+        tprint('Lee et al. 2018...')
+        seq_to_mutate, escape_seqs = load_lee2018()
+        analyze_semantics(args, model, vocabulary, seq_to_mutate, escape_seqs,
+                          prob_cutoff=0., beta=1., plot_acquisition=True,)
+        tprint('')
+
+        exit()
 
         tprint('Lee et al. 2019...')
         seq_to_mutate, escape_seqs = load_lee2019()

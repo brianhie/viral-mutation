@@ -130,6 +130,7 @@ def plot_umap(adata):
     sc.pl.umap(adata, color='date', save='_date.png')
     sc.pl.umap(adata, color='country', save='_country.png')
     sc.pl.umap(adata, color='host', save='_host.png')
+    sc.pl.umap(adata, color='prot_name', save='_prot.png')
     sc.pl.umap(adata, color='strain', save='_strain.png')
     sc.pl.umap(adata, color='louvain', save='_louvain.png')
     sc.pl.umap(adata, color='n_seq', save='_number.png',
@@ -169,60 +170,6 @@ def analyze_embedding(args, model, seqs, vocabulary):
     interpret_clusters(adata)
     #seq_clusters(adata)
 
-def analyze_semantics(args, model, vocabulary, seq_to_mutate, escape_seqs,
-                      prob_cutoff=0, beta=1., verbose=False):
-    seqs = { seq_to_mutate: [ {} ] }
-    X_cat, lengths = featurize_seqs(seqs, vocabulary)
-
-    if args.model_name == 'lstm':
-        from lstm import _split_and_pad
-    elif args.model_name == 'bilstm':
-        from bilstm import _split_and_pad
-    else:
-        raise ValueError('No semantics support for model {}'
-                         .format(args.model_name))
-
-    X = _split_and_pad(X_cat, lengths, model.seq_len_,
-                       model.vocab_size_, verbose)[0]
-    y_pred = model.model_.predict(X, batch_size=2500)
-    assert(y_pred.shape[0] == len(seq_to_mutate) + 2)
-    assert(y_pred.shape[1] == len(AAs) + 3)
-
-    word_pos_prob = {}
-    for i in range(len(seq_to_mutate)):
-        for word in vocabulary:
-            word_idx = vocabulary[word]
-            prob = y_pred[i + 1, word_idx]
-            if prob < prob_cutoff:
-                continue
-            word_pos_prob[(word, i)] = prob
-
-    prob_sorted = sorted(word_pos_prob.items(), key=lambda x: -x[1])
-    prob_seqs = { seq_to_mutate: [ {} ] }
-    seq_prob = {}
-    for (word, pos), prob in prob_sorted:
-        mutable = seq_to_mutate[:pos] + word + seq_to_mutate[pos + 1:]
-        prob_seqs[mutable] = [ {} ]
-        seq_prob[mutable] = prob
-
-    prob_seqs = embed_seqs(args, model, prob_seqs, vocabulary,
-                           use_cache=False, verbose=verbose)
-    base_embedding = prob_seqs[seq_to_mutate][0]['embedding']
-    seq_change = {}
-    for seq in prob_seqs:
-        embedding = prob_seqs[seq][0]['embedding']
-        # L1 distance between embedding vectors.
-        seq_change[seq] = abs(base_embedding - embedding).sum()
-
-    seqs = np.array([ str(seq) for seq in sorted(seq_prob.keys()) ])
-    prob = np.array([ seq_prob[seq] for seq in seqs ])
-    change = np.array([ seq_change[seq] for seq in seqs ])
-
-    dirname = 'target/cov/semantics/cache'
-    mkdir_p(dirname)
-    cache_fname = dirname + '/plot.npz'
-    np.savez_compressed(cache_fname, prob, change)
-
 if __name__ == '__main__':
     args = parse_args()
 
@@ -238,7 +185,7 @@ if __name__ == '__main__':
     if args.checkpoint is not None:
         model.model_.load_weights(args.checkpoint)
         tprint('Model summary:')
-        print(model.model_.summary())
+        tprint(model.model_.summary())
 
     if args.train or args.train_split or args.test:
         train_test(args, model, seqs, vocabulary, split_seqs)
@@ -257,4 +204,9 @@ if __name__ == '__main__':
         if args.checkpoint is None and not args.train:
             raise ValueError('Model must be trained or loaded '
                              'from checkpoint.')
-        raise NotImplementedError()
+
+        from escape import load_korber2020
+
+        seq_to_mutate, escape_seqs = load_korber2020()
+        analyze_semantics(args, model, vocabulary, seq_to_mutate, escape_seqs,
+                          prob_cutoff=0., beta=1., plot_acquisition=True,)
