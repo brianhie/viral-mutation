@@ -238,19 +238,19 @@ if __name__ == '__main__':
         if args.checkpoint is None and not args.train:
             raise ValueError('Model must be trained or loaded '
                              'from checkpoint.')
-        random_sample = np.random.choice(
-            [ ' '.join(seq) for seq in seqs ], 50
-        )
-        for headline in random_sample[12:]:
-            tprint('')
-            analyze_semantics(args, model, headline.split(' '),
-                              vocabulary, n_most_probable=3,
-                              prob_cutoff=0, beta=2.)
         #random_sample = np.random.choice(
-        #    [ ' '.join(seq) for seq in seqs ], 100000
+        #    [ ' '.join(seq) for seq in seqs ], 50
         #)
-        #for headline in random_sample[50000:]:
+        #for headline in random_sample[12:]:
         #    tprint('')
         #    analyze_semantics(args, model, headline.split(' '),
         #                      vocabulary, n_most_probable=3,
-        #                      prob_cutoff=1e-4, beta=0.25)
+        #                      prob_cutoff=0, beta=2.)
+        random_sample = np.random.choice(
+            [ ' '.join(seq) for seq in seqs ], 100000
+        )
+        for headline in random_sample[50000:]:
+            tprint('')
+            analyze_semantics(args, model, headline.split(' '),
+                              vocabulary, n_most_probable=3,
+                              prob_cutoff=1e-4, beta=1.)
