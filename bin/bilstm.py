@@ -101,10 +101,10 @@ class BiLSTMLanguageModel(object):
             metrics=[ 'accuracy' ]
         )
 
-        mkdir_p('{}/checkpoints/bilstm'.format(self.cache_dir_))
+        mkdir_p('{}/checkpoints.old/bilstm'.format(self.cache_dir_))
         model_name = 'bilstm'
         checkpoint = ModelCheckpoint(
-            '{}/checkpoints/bilstm/{}_{}'
+            '{}/checkpoints.old/bilstm/{}_{}'
             .format(self.cache_dir_, model_name, self.hidden_dim_) +
             '-{epoch:02d}.hdf5',
             save_best_only=False, save_weights_only=False,

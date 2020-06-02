@@ -79,7 +79,7 @@ if __name__ == '__main__':
     anchor = msa_subset(
         'target/hiv/clusters/all.fasta',
         'target/hiv/clusters/all_BG505.fasta',
-        'A1.KE.-.BG505_W6M_ENV_C2.DQ208458', 30
+        'A1.KE.-.BG505_W6M_ENV_C2.DQ208458', 15
     )
     mutants, mutant_names = create_mutants('hiv', anchor)
     write_mutants('hiv', mutants, mutant_names,

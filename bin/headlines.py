@@ -127,18 +127,57 @@ def analyze_embedding(args, model, seqs, vocabulary):
 
     interpret_clusters(adata)
 
-def analyze_headline_semantics(
-        args, model, seq_to_mutate, vocabulary,
-        prob_cutoff=1e-4, n_most_probable=100, beta=1.,
-        plot_acquisition=False, verbose=False
-):
-    seqs, prob, change, _, _ = analyze_semantics(
-        args, model, vocabulary, seq_to_mutate, {},
-        prob_cutoff=prob_cutoff, beta=beta, plot_acquisition=False,
-        cache_fname=None, verbose=verbose
-    )
+def analyze_semantics(args, model, seq_to_mutate, vocabulary,
+                      prob_cutoff=1e-4, n_most_probable=100, beta=1.,
+                      plot_acquisition=False, verbose=False):
+    seq_to_mutate = tuple(seq_to_mutate)
+    seqs = { seq_to_mutate: [ {} ] }
+    X_cat, lengths = featurize_seqs(seqs, vocabulary)
 
-    headlines = np.array([ ' '.join(seq) for seq in seqs ])
+    if args.model_name == 'lstm':
+        from lstm import _split_and_pad
+    elif args.model_name == 'bilstm':
+        from bilstm import _split_and_pad
+    else:
+        raise ValueError('No semantics support for model {}'
+                         .format(args.model_name))
+
+    X = _split_and_pad(X_cat, lengths, model.seq_len_,
+                       model.vocab_size_, False)[0]
+    y_pred = model.model_.predict(X, batch_size=2500)
+    assert(y_pred.shape[0] == len(seq_to_mutate) + 2)
+    assert(y_pred.shape[1] == len(vocabulary) + 3)
+
+    word_pos_prob = {}
+    for i in range(len(seq_to_mutate)):
+        for word in vocabulary:
+            word_idx = vocabulary[word]
+            prob = y_pred[i + 1, word_idx]
+            if prob < prob_cutoff:
+                continue
+            word_pos_prob[(word, i)] = prob
+
+    prob_seqs = { seq_to_mutate: [ {} ] }
+    seq_prob = {}
+    for (word, pos), prob in word_pos_prob.items():
+        mutable = list(seq_to_mutate)
+        mutable[pos] = word
+        prob_seqs[tuple(mutable)] = [ {} ]
+        seq_prob[tuple(mutable)] = prob
+
+    prob_seqs = embed_seqs(args, model, prob_seqs, vocabulary,
+                           use_cache=False, verbose=verbose)
+    base_embedding = prob_seqs[seq_to_mutate][0]['embedding']
+    seq_change = {}
+    for seq in prob_seqs:
+        embedding = prob_seqs[seq][0]['embedding']
+        # L1 distance between embedding vectors.
+        seq_change[seq] = abs(base_embedding - embedding).sum()
+
+    sorted_seqs = sorted(seq_prob.keys())
+    headlines = np.array([ ' '.join(seq) for seq in sorted_seqs ])
+    prob = np.array([ seq_prob[seq] for seq in sorted_seqs ])
+    change = np.array([ seq_change[seq] for seq in sorted_seqs ])
     acquisition = ss.rankdata(change) + (beta * ss.rankdata(prob))
 
     if plot_acquisition:
@@ -175,7 +214,7 @@ if __name__ == '__main__':
     seqs, vocabulary = setup()
     seq_len = max([ len(seq) for seq in seqs ]) + 2
     vocab_size = len(vocabulary) + 2
-    model = get_model(args, seq_len, vocab_size, batch_size=5)
+    model = get_model(args, seq_len, vocab_size)
 
     if args.checkpoint is not None:
         model.model_.load_weights(args.checkpoint)
@@ -199,13 +238,19 @@ if __name__ == '__main__':
         if args.checkpoint is None and not args.train:
             raise ValueError('Model must be trained or loaded '
                              'from checkpoint.')
+        #random_sample = np.random.choice(
+        #    [ ' '.join(seq) for seq in seqs ], 50
+        #)
+        #for headline in random_sample[12:]:
+        #    tprint('')
+        #    analyze_semantics(args, model, headline.split(' '),
+        #                      vocabulary, n_most_probable=3,
+        #                      prob_cutoff=0, beta=2.)
         random_sample = np.random.choice(
             [ ' '.join(seq) for seq in seqs ], 100000
         )
         for headline in random_sample[50000:]:
             tprint('')
-            analyze_headline_semantics(
-                args, model, headline.split(' '),
-                vocabulary, n_most_probable=3,
-                prob_cutoff=1e-4, beta=0.25
-            )
+            analyze_semantics(args, model, headline.split(' '),
+                              vocabulary, n_most_probable=3,
+                              prob_cutoff=1e-4, beta=1.)

@@ -145,16 +145,6 @@ def interpret_clusters(adata):
                 tprint('\t\t{}: {}'.format(val, count))
         tprint('')
 
-def seq_clusters(adata):
-    clusters = sorted(set(adata.obs['louvain']))
-    for cluster in clusters:
-        adata_cluster = adata[adata.obs['louvain'] == cluster]
-        counts = Counter(adata_cluster.obs['seq'])
-        with open('target/clusters/cluster{}.fa'.format(cluster), 'w') as of:
-            for i, (seq, count) in enumerate(counts.most_common()):
-                of.write('>cluster{}_{}_{}\n'.format(cluster, i, count))
-                of.write(seq + '\n\n')
-
 def plot_umap(adata):
     sc.tl.umap(adata, min_dist=1.)
     sc.pl.umap(adata, color='year', save='_hiv_year.png')
@@ -210,7 +200,6 @@ def analyze_embedding(args, model, seqs, vocabulary):
     plot_umap(adata)
 
     interpret_clusters(adata)
-    #seq_clusters(adata)
 
 if __name__ == '__main__':
     args = parse_args()

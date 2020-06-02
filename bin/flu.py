@@ -29,6 +29,10 @@ def parse_args():
                         help='Analyze embeddings')
     parser.add_argument('--semantics', action='store_true',
                         help='Analyze mutational semantic change')
+    parser.add_argument('--combfit', action='store_true',
+                        help='Analyze combinatorial fitness')
+    parser.add_argument('--evolve', action='store_true',
+                        help='Evolve a sequence')
     args = parser.parse_args()
     return args
 
@@ -171,11 +175,11 @@ def plot_composition(adata, var):
 
 def plot_umap(adata):
     sc.tl.umap(adata, min_dist=1.)
-    sc.pl.umap(adata, color='Host Species', save='_species.png')
-    sc.pl.umap(adata, color='Subtype', save='_subtype.png')
-    sc.pl.umap(adata, color='Collection Date', save='_date.png')
-    sc.pl.umap(adata, color='louvain', save='_louvain.png')
-    sc.pl.umap(adata, color='n_seq', save='_number.png',
+    sc.pl.umap(adata, color='Host Species', save='_flu_species.png')
+    sc.pl.umap(adata, color='Subtype', save='_flu_subtype.png')
+    sc.pl.umap(adata, color='Collection Date', save='_flu_date.png')
+    sc.pl.umap(adata, color='louvain', save='_flu_louvain.png')
+    sc.pl.umap(adata, color='n_seq', save='_flu_number.png',
                s=np.log(np.array(adata.obs['n_seq']) * 100) + 1)
 
 def plot_umap_time(adata):
@@ -233,7 +237,99 @@ def analyze_embedding(args, model, seqs, vocabulary):
     plot_umap_time(adata_human)
 
     interpret_clusters(adata)
+
+    from sklearn.metrics import adjusted_mutual_info_score as AMI
+    tprint('AMI, Louvain and subtype: {}'
+           .format(AMI(adata.obs['louvain'],
+                       adata.obs['Subtype'])))
+    tprint('AMI, Louvain and host species: {}'
+           .format(AMI(adata.obs['louvain'],
+                       adata.obs['Host Species'])))
     #seq_clusters(adata)
+
+def analyze_comb_fitness(
+        args, model, vocabulary,
+        strain, wt_seq, seqs_fitness,
+        prob_cutoff=0., beta=1., verbose=True,
+):
+    y_pred = predict_sequence_prob(
+        args, wt_seq, vocabulary, model, verbose=verbose
+    )
+
+    word_pos_prob = {}
+    for pos in range(len(wt_seq)):
+        for word in vocabulary:
+            word_idx = vocabulary[word]
+            prob = y_pred[pos + 1, word_idx]
+            if prob < prob_cutoff:
+                continue
+            word_pos_prob[(word, pos)] = prob
+
+    data = []
+    for mut_seq in seqs_fitness:
+        assert(len(mut_seq) == len(wt_seq))
+        assert(len(seqs_fitness[mut_seq]) == 1)
+        meta = seqs_fitness[mut_seq][0]
+        if meta['strain'] != strain:
+            continue
+
+        mut_pos = set(meta['mut_pos'])
+        raw_probs = []
+        for idx, aa in enumerate(mut_seq):
+            if idx in mut_pos:
+                raw_probs.append(word_pos_prob[(aa, idx)])
+            else:
+                assert(aa == wt_seq[idx])
+        assert(len(raw_probs) == len(mut_pos))
+
+        data.append([
+            meta['strain'],
+            meta['fitness'],
+            meta['preference'],
+            np.sum(np.log10(raw_probs))
+        ])
+
+    df = pd.DataFrame(data, columns=[
+        'strain', 'fitness', 'preference', 'predicted'
+    ])
+
+    print('\nStrain: {}'.format(strain))
+    print('Spearman r = {:.4f}, P = {:.4g}'
+          .format(*ss.spearmanr(df.preference, df.predicted)))
+    print('Pearson rho = {:.4f}, P = {:.4g}'
+          .format(*ss.pearsonr(df.preference, df.predicted)))
+
+    plt.figure()
+    plt.scatter(df.preference, df.predicted, alpha=0.3)
+    plt.ylim([ -27., 1. ])
+    plt.title(strain)
+    plt.xlabel('Preference')
+    plt.ylabel('Predicted')
+    plt.savefig('figures/combinatorial_fitness_{}.png'.format(strain),
+                dpi=300)
+    plt.close()
+
+def evolve(args, model, vocabulary, start_seq,
+           n_timesteps=100, prob_cutoff=1e-3,
+           beta=0.1, gamma_shape=1., gamma_scale=5.,
+           verbose=True):
+    tprint('Seq at t = 0:')
+    tprint(start_seq)
+    curr_seq = start_seq
+    for time in range(n_timesteps):
+        seqs, prob, change, _, _ = analyze_semantics(
+            args, model, vocabulary, curr_seq, {},
+            prob_cutoff=prob_cutoff, beta=beta,
+            plot_acquisition=False, verbose=verbose
+        )
+        acquisition = ss.rankdata(change) + (beta * ss.rankdata(prob))
+        argsort = np.argsort(-acquisition)
+        assert(argsort[0] == np.argmax(acquisition))
+        argsort_idx = math.floor(np.random.gamma(gamma_shape, gamma_scale))
+        acq_idx = argsort[argsort_idx]
+        curr_seq = seqs[acq_idx]
+        tprint('Seq at t = {}:'.format(time + 1))
+        tprint(curr_seq)
 
 if __name__ == '__main__':
     args = parse_args()
@@ -241,7 +337,7 @@ if __name__ == '__main__':
     AAs = [
         'A', 'R', 'N', 'D', 'C', 'Q', 'E', 'G', 'H',
         'I', 'L', 'K', 'M', 'F', 'P', 'S', 'T', 'W',
-        'Y', 'V', 'X', 'Z', 'J', 'U', 'B',
+        'Y', 'V', 'X', 'Z', 'J', 'U', 'B', 'Z'
     ]
     vocabulary = { aa: idx + 1 for idx, aa in enumerate(sorted(AAs)) }
 
@@ -274,21 +370,29 @@ if __name__ == '__main__':
 
         tprint('Lee et al. 2018...')
         seq_to_mutate, escape_seqs = load_lee2018()
-        cache_fname = ('target/flu/semantics/cache/plot_h1_{}_{}.npz'
-                       .format(args.model_name, args.dim))
-        analyze_semantics(
-            args, model, vocabulary, seq_to_mutate, escape_seqs,
-            prob_cutoff=0., beta=1., plot_acquisition=True,
-            cache_fname=cache_fname,
-        )
+        analyze_semantics(args, model, vocabulary, seq_to_mutate, escape_seqs,
+                          prob_cutoff=0., beta=1., plot_acquisition=True,)
         tprint('')
 
         tprint('Lee et al. 2019...')
         seq_to_mutate, escape_seqs = load_lee2019()
-        cache_fname = ('target/flu/semantics/cache/plot_h3_{}_{}.npz'
-                       .format(args.model_name, args.dim))
-        analyze_semantics(
-            args, model, vocabulary, seq_to_mutate, escape_seqs,
-            prob_cutoff=0., beta=1., plot_acquisition=True,
-            cache_fname=cache_fname,
-        )
+        analyze_semantics(args, model, vocabulary, seq_to_mutate, escape_seqs,
+                          prob_cutoff=0., beta=1., plot_acquisition=True,)
+
+    if args.combfit:
+        from combinatorial_fitness import load_wu2020
+        tprint('Wu et al. 2020...')
+        wt_seqs, seqs_fitness = load_wu2020()
+        strains = sorted(wt_seqs.keys())
+        for strain in strains:
+            analyze_comb_fitness(args, model, vocabulary,
+                                 strain, wt_seqs[strain], seqs_fitness,
+                                 prob_cutoff=0., beta=1.)
+
+    if args.evolve:
+        from escape import load_lee2019
+        start_seq = load_lee2019()[0]
+        for beta in [ 0., 0.1, 0.25, 1. ]:
+            tprint('\nBeta = {}\n'.format(beta))
+            evolve(args, model, vocabulary, start_seq,
+                   n_timesteps=100, prob_cutoff=1e-3, beta=beta,)
