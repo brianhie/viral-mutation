@@ -224,8 +224,6 @@ def analyze_semantics(args, model, vocabulary, seq_to_mutate, escape_seqs,
         for word in vocabulary:
             word_idx = vocabulary[word]
             prob = y_pred[i + 1, word_idx]
-            if prob < prob_cutoff:
-                continue
             word_pos_prob[(word, i)] = prob
 
     prob_sorted = sorted(word_pos_prob.items(), key=lambda x: -x[1])
@@ -233,8 +231,9 @@ def analyze_semantics(args, model, vocabulary, seq_to_mutate, escape_seqs,
     seq_prob = {}
     for (word, pos), prob in prob_sorted:
         mutable = seq_to_mutate[:pos] + word + seq_to_mutate[pos + 1:]
-        prob_seqs[mutable] = [ {} ]
         seq_prob[mutable] = prob
+        if prob >= prob_cutoff:
+            prob_seqs[mutable] = [ {} ]
 
     seqs = np.array([ str(seq) for seq in sorted(seq_prob.keys()) ])
 
@@ -252,14 +251,19 @@ def analyze_semantics(args, model, vocabulary, seq_to_mutate, escape_seqs,
                 except ValueError:
                     of.write('NA\n')
 
-    prob_seqs = embed_seqs(args, model, prob_seqs, vocabulary,
-                           use_cache=False, verbose=verbose)
+    prob_seqs = embed_seqs(
+        args, model, prob_seqs, vocabulary,
+        use_cache=False, verbose=verbose
+    )
     base_embedding = prob_seqs[seq_to_mutate][0]['embedding']
     seq_change = {}
-    for seq in prob_seqs:
-        embedding = prob_seqs[seq][0]['embedding']
-        # L1 distance between embedding vectors.
-        seq_change[seq] = abs(base_embedding - embedding).sum()
+    for seq in seqs:
+        if seq in prob_seqs:
+            embedding = prob_seqs[seq][0]['embedding']
+            # L1 distance between embedding vectors.
+            seq_change[seq] = abs(base_embedding - embedding).sum()
+        else:
+            seq_change[seq] = 0
 
     prob = np.array([ seq_prob[seq] for seq in seqs ])
     change = np.array([ seq_change[seq] for seq in seqs ])

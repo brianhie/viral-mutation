@@ -125,19 +125,23 @@ def seq_clusters(adata):
                 of.write('>cluster{}_{}_{}\n'.format(cluster, i, count))
                 of.write(seq + '\n\n')
 
-def plot_umap(adata):
-    sc.tl.umap(adata, min_dist=1.)
-    sc.pl.umap(adata, color='date', save='_date.png')
-    sc.pl.umap(adata, color='country', save='_country.png')
-    sc.pl.umap(adata, color='host', save='_host.png')
-    sc.pl.umap(adata, color='prot_name', save='_prot.png')
-    sc.pl.umap(adata, color='strain', save='_strain.png')
-    sc.pl.umap(adata, color='louvain', save='_louvain.png')
-    sc.pl.umap(adata, color='n_seq', save='_number.png',
+def plot_umap(adata, namespace='cov'):
+    sc.pl.umap(adata, color='date',
+               save='_{}_date.png'.format(namespace))
+    sc.pl.umap(adata, color='country',
+               save='_{}_country.png'.format(namespace))
+    sc.pl.umap(adata, color='host',
+               save='_{}_host.png'.format(namespace))
+    sc.pl.umap(adata, color='prot_name',
+               save='_{}_prot.png'.format(namespace))
+    sc.pl.umap(adata, color='louvain',
+               save='_{}_louvain.png'.format(namespace))
+    sc.pl.umap(adata, color='n_seq',
+               save='_{}_number.png'.format(namespace),
                s=np.log(np.array(adata.obs['n_seq']) * 100) + 1)
 
 def analyze_embedding(args, model, seqs, vocabulary):
-    seqs = embed_seqs(args, model, seqs, vocabulary)
+    seqs = embed_seqs(args, model, seqs, vocabulary, use_cache=True)
 
     X, obs = [], {}
     obs['n_seq'] = []
@@ -163,12 +167,16 @@ def analyze_embedding(args, model, seqs, vocabulary):
 
     sc.pp.neighbors(adata, n_neighbors=100, use_rep='X')
     sc.tl.louvain(adata, resolution=1.)
+    sc.tl.umap(adata, min_dist=1.)
 
     sc.set_figure_params(dpi_save=500)
     plot_umap(adata)
 
     interpret_clusters(adata)
     #seq_clusters(adata)
+
+    plot_umap(adata[adata.obs['louvain'] == '7'],
+              namespace='cov7')
 
 if __name__ == '__main__':
     args = parse_args()
@@ -209,4 +217,4 @@ if __name__ == '__main__':
 
         seq_to_mutate, escape_seqs = load_korber2020()
         analyze_semantics(args, model, vocabulary, seq_to_mutate, escape_seqs,
-                          prob_cutoff=0., beta=1., plot_acquisition=True,)
+                          prob_cutoff=1e-10, beta=1., plot_acquisition=True,)

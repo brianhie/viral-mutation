@@ -175,11 +175,11 @@ def plot_composition(adata, var):
 
 def plot_umap(adata):
     sc.tl.umap(adata, min_dist=1.)
-    sc.pl.umap(adata, color='Host Species', save='_species.png')
-    sc.pl.umap(adata, color='Subtype', save='_subtype.png')
-    sc.pl.umap(adata, color='Collection Date', save='_date.png')
-    sc.pl.umap(adata, color='louvain', save='_louvain.png')
-    sc.pl.umap(adata, color='n_seq', save='_number.png',
+    sc.pl.umap(adata, color='Host Species', save='_flu_species.png')
+    sc.pl.umap(adata, color='Subtype', save='_flu_subtype.png')
+    sc.pl.umap(adata, color='Collection Date', save='_flu_date.png')
+    sc.pl.umap(adata, color='louvain', save='_flu_louvain.png')
+    sc.pl.umap(adata, color='n_seq', save='_flu_number.png',
                s=np.log(np.array(adata.obs['n_seq']) * 100) + 1)
 
 def plot_umap_time(adata):

@@ -13,6 +13,7 @@ def cached_escape_semantics(cache_fname, beta, plot=True,
     acquisition = ss.rankdata(change) + (beta * ss.rankdata(prob))
 
     pos_change_idx = change > 0
+
     pos_change_escape_idx = np.logical_and(pos_change_idx, escape_idx)
     escape_prob = prob[pos_change_escape_idx]
     escape_change = change[pos_change_escape_idx]
