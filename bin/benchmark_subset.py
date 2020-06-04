@@ -31,7 +31,7 @@ def create_mutants(virus, aligned_str):
     AAs = [
         'A', 'R', 'N', 'D', 'C', 'Q', 'E', 'G', 'H',
         'I', 'L', 'K', 'M', 'F', 'P', 'S', 'T', 'W',
-        'Y', 'V', 'X', 'Z', 'J', 'U', 'B',
+        'Y', 'V', 'U',
     ]
 
     mutants, mutant_names = [], []
