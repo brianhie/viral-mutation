@@ -160,17 +160,31 @@ def tape_embed(sequence, model, tokenizer):
     output = model(token_ids)
     return output[0].detach().numpy().mean(1).ravel()
 
-def escape_tape(virus):
-    from tape import ProteinBertModel, TAPETokenizer
-    model = ProteinBertModel.from_pretrained('bert-base')
-    tokenizer = TAPETokenizer(vocab='iupac')
+def escape_tape(virus, pretrained='transformer'):
+    if pretrained == 'transformer':
+        from tape import ProteinBertModel
+        model_class = ProteinBertModel
+        model_name = 'bert-base'
+        fname_prefix = 'tape_transformer'
+        vocab = 'iupac'
+    elif pretrained == 'unirep':
+        from tape import UniRepModel
+        model_class = UniRepModel
+        model_name = 'babbler-1900'
+        fname_prefix = 'unirep'
+        vocab = 'unirep'
+
+    from tape import TAPETokenizer
+    model = model_class.from_pretrained(model_name)
+    tokenizer = TAPETokenizer(vocab=vocab)
 
     if virus == 'h1':
         from escape import load_lee2018
         seq, seqs_escape = load_lee2018()
         train_fname = 'target/flu/clusters/all.fasta'
         mut_fname = 'target/flu/mutation/mutations_h1.fa'
-        embed_fname = 'target/flu/embedding/tape_transformer_h1.npz'
+        embed_fname = ('target/flu/embedding/{}_h1.npz'
+                       .format(fname_prefix))
         anchor_id = ('gb:LC333185|ncbiId:BBB04702.1|UniProtKB:-N/A-|'
                      'Organism:Influenza')
     elif virus == 'h3':
@@ -178,14 +192,16 @@ def escape_tape(virus):
         seq, seqs_escape = load_lee2019()
         train_fname = 'target/flu/clusters/all.fasta'
         mut_fname = 'target/flu/mutation/mutations_h3.fa'
-        embed_fname = 'target/flu/embedding/tape_transformer_h3.npz'
+        embed_fname = ('target/flu/embedding/{}_h3.npz'
+                       .format(fname_prefix))
         anchor_id = 'Reference_Perth2009_HA_coding_sequence'
     elif virus == 'hiv':
         from escape import load_dingens2019
         seq, seqs_escape = load_dingens2019()
         train_fname = 'target/hiv/clusters/all_BG505.fasta'
         mut_fname = 'target/hiv/mutation/mutations_hiv.fa'
-        embed_fname = 'target/hiv/embedding/tape_transformer_hiv.npz'
+        embed_fname = ('target/hiv/embedding/{}_hiv.npz'
+                       .format(fname_prefix))
         anchor_id = 'A1.KE.-.BG505_W6M_ENV_C2.DQ208458'
     else:
         raise ValueError('invalid option {}'.format(virus))
@@ -243,14 +259,102 @@ def escape_tape(virus):
     ])
     plt.xlabel('Top N')
     plt.ylabel('Number of escape mutations in top N')
-    plt.savefig('figures/{}_tape_escape.png'.format(virus), dpi=300)
+    plt.savefig('figures/{}_{}_escape.png'
+                .format(virus, fname_prefix), dpi=300)
+    plt.close()
+
+def escape_bepler(virus):
+    if virus == 'h1':
+        from escape import load_lee2018
+        seq, seqs_escape = load_lee2018()
+        train_fname = 'target/flu/clusters/all.fasta'
+        mut_fname = 'target/flu/mutation/mutations_h1.fa'
+        embed_fname = 'target/flu/embedding/bepler_ssa_h1.txt'
+        anchor_id = ('gb:LC333185|ncbiId:BBB04702.1|UniProtKB:-N/A-|'
+                     'Organism:Influenza')
+    elif virus == 'h3':
+        from escape import load_lee2019
+        seq, seqs_escape = load_lee2019()
+        train_fname = 'target/flu/clusters/all.fasta'
+        mut_fname = 'target/flu/mutation/mutations_h3.fa'
+        embed_fname = 'target/flu/embedding/bepler_ssa_h3.txt'
+        anchor_id = 'Reference_Perth2009_HA_coding_sequence'
+    elif virus == 'hiv':
+        from escape import load_dingens2019
+        seq, seqs_escape = load_dingens2019()
+        train_fname = 'target/hiv/clusters/all_BG505.fasta'
+        mut_fname = 'target/hiv/mutation/mutations_hiv.fa'
+        embed_fname = 'target/hiv/embedding/bepler_ssa_hiv.txt'
+        anchor_id = 'A1.KE.-.BG505_W6M_ENV_C2.DQ208458'
+    else:
+        raise ValueError('invalid option {}'.format(virus))
+
+    anchor = None
+    for idx, record in enumerate(SeqIO.parse(train_fname, 'fasta')):
+        if record.id == anchor_id:
+            anchor = str(record.seq)
+    assert(anchor is not None)
+
+    embeddings = {}
+    with open(embed_fname) as f:
+        for line in f:
+            if line.startswith('>'):
+                name = line.rstrip()[1:]
+            embedding = np.array(
+                [ float(field)
+                  for field in f.readline().rstrip().split() ]
+            )
+            embeddings[name] = embedding
+    base_embedding = embeddings['base']
+
+    mutations = [
+        str(record.seq)
+        for record in SeqIO.parse(mut_fname, 'fasta')
+    ]
+
+    escape_idx = []
+    changes = []
+    for mut_idx, mutation in enumerate(mutations):
+        if mutation.replace('-', '') in seqs_escape:
+            escape_idx.append(mut_idx)
+        didx = [ c1 != c2
+                 for c1, c2 in zip(anchor, mutation) ].index(True)
+        embedding = embeddings['mut_{}_{}'.format(didx, mutation[didx])]
+        changes.append(abs(base_embedding - embedding).sum())
+    changes = np.array(changes)
+    assert(len(escape_idx) == len(seqs_escape) - 1)
+
+    acq_argsort = ss.rankdata(-changes)
+    escape_rank_dist = acq_argsort[escape_idx]
+
+    max_consider = len(changes)
+    n_consider = np.array([ i + 1 for i in range(max_consider) ])
+
+    n_escape = np.array([ sum(escape_rank_dist <= i + 1)
+                          for i in range(max_consider) ])
+    norm = max(n_consider) * max(n_escape)
+    norm_auc = auc(n_consider, n_escape) / norm
+
+    escape_frac = len(seqs_escape) / len(changes)
+
+    plt.figure()
+    plt.plot(n_consider, n_escape)
+    plt.plot(n_consider, n_consider * escape_frac,
+             c='gray', linestyle='--')
+    plt.legend([
+        r'Bepler, AUC = {:.3f}'.format(norm_auc),
+        'Random guessing, AUC = 0.500'
+    ])
+    plt.xlabel('Top N')
+    plt.ylabel('Number of escape mutations in top N')
+    plt.savefig('figures/{}_bepler_escape.png'.format(virus), dpi=300)
     plt.close()
 
 if __name__ == '__main__':
     args = parse_args()
 
     if args.method == 'bepler':
-        pass
+        escape_bepler(args.virus)
 
     elif args.method == 'energy_louie':
         escape_energy(args.virus)
@@ -263,3 +367,6 @@ if __name__ == '__main__':
 
     elif args.method == 'tape':
         escape_tape(args.virus)
+
+    elif args.method == 'unirep':
+        escape_tape(args.virus, 'unirep')

@@ -51,6 +51,25 @@ tape-embed transformer \
            --tokenizer iupac \
            --batch_size 128
 
+tape-embed unirep \
+           target/flu/mutation/mutations_clean_h1.fasta \
+           target/flu/embedding/unirep_h1.npz \
+           babbler-1900 \
+           --tokenizer unirep \
+           --batch_size 256
+tape-embed unirep \
+           target/flu/mutation/mutations_clean_h3.fasta \
+           target/flu/embedding/unirep_h3.npz \
+           babbler-1900 \
+           --tokenizer unirep \
+           --batch_size 256
+tape-embed unirep \
+           target/hiv/mutation/mutations_clean_hiv.fasta \
+           target/hiv/embedding/unirep_hiv.npz \
+           babbler-1900 \
+           --tokenizer unirep \
+           --batch_size 128
+
 ########################
 ## Final calculations ##
 ########################
