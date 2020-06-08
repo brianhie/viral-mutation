@@ -74,7 +74,7 @@ tape-embed unirep \
 ## Final calculations ##
 ########################
 
-declare -a methods=("bepler" "tape" "freq" "energy_louie" "energy_hopf")
+declare -a methods=("bepler" "energy" "ecouple" "freq" "tape" "unirep")
 declare -a viruses=("h1" "h3" "hiv")
 
 for method in ${methods[@]}

@@ -356,10 +356,10 @@ if __name__ == '__main__':
     if args.method == 'bepler':
         escape_bepler(args.virus)
 
-    elif args.method == 'energy_louie':
+    elif args.method == 'energy':
         escape_energy(args.virus)
 
-    elif args.method == 'energy_hopf':
+    elif args.method == 'ecouple':
         pass
 
     elif args.method == 'freq':
