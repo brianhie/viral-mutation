@@ -5,7 +5,7 @@ tf.set_random_seed(1)
 
 from keras import backend as K
 from keras.callbacks.callbacks import ModelCheckpoint
-from keras.layers import Activation, Dense, Embedding, LSTM, TimeDistributed
+from keras.layers import Dense, Embedding, LSTM
 from keras.models import Sequential
 from keras.optimizers import Adam, SGD
 from keras.preprocessing.sequence import pad_sequences
@@ -27,20 +27,28 @@ def _split_and_pad(X_cat, lengths, seq_len, vocab_size, verbose):
         raise ValueError('Length dimension mismatch: {} and {}'
                          .format(X_cat.shape[0], sum(lengths)))
 
+    if vocab_size >= 32767:
+        intp = 'int32'
+    elif vocab_size >= 127:
+        intp = 'int16'
+    else:
+        intp = 'int8'
+
     if verbose > 1:
         tprint('Splitting...')
     X_seqs = [
-        X_cat[start:end].flatten()
+        X_cat[start:end].flatten()[:i + 1]
         for start, end in _iterate_lengths(lengths, seq_len)
+        for i in range(end - start)
     ]
 
     if verbose > 1:
         tprint('Padding...')
     padded = pad_sequences(
         X_seqs, maxlen=seq_len,
-        padding='pre', truncating='pre', value=0.
+        dtype=intp, padding='pre', truncating='pre', value=0.
     )
-    X, y = padded[:, :-1], padded[:, 1:, None]
+    X, y = padded[:, :-1], padded[:, -1]
 
     if verbose > 1:
         tprint('Done splitting and padding.')
@@ -55,25 +63,24 @@ class LSTMLanguageModel(object):
             hidden_dim=256,
             n_hidden=2,
             n_epochs=1,
-            batch_size=32,
+            batch_size=1000,
             cache_dir='.',
+            fp_precision='float32',
             verbose=False
     ):
         config = tf.ConfigProto()
         config.gpu_options.allow_growth = True
         K.tensorflow_backend.set_session(tf.Session(config=config))
+        if fp_precision != K.floatx():
+            K.set_floatx(fp_precision)
 
         model = Sequential()
         model.add(Embedding(vocab_size + 1, embedding_dim,
                             input_length=seq_len - 1))
-        for _ in range(n_hidden):
+        for _ in range(n_hidden - 1):
             model.add(LSTM(hidden_dim, return_sequences=True))
-
-        model.add(TimeDistributed(
-            Dense(vocab_size + 1, activation='softmax'),
-            input_shape=(seq_len - 1, hidden_dim)
-        ))
-
+        model.add(LSTM(hidden_dim))
+        model.add(Dense(vocab_size + 1, activation='softmax'))
         self.model_ = model
 
         self.seq_len_ = seq_len

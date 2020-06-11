@@ -52,7 +52,7 @@ class TransfomerLanguageModel(object):
         config = tf.ConfigProto()
         config.gpu_options.allow_growth = True
 
-        input_ = tf.keras.Input(shape=(seq_len,))
+        input_ = tf.keras.Input(shape=(seq_len - 1,))
 
         self.encoder_ = Encoder(
             n_hidden, hidden_dim, n_heads, dff,
