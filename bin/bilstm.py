@@ -1,10 +1,10 @@
 from utils import *
-from lstm import *
 
-from lstm import _iterate_lengths
-
-from keras.models import Model
-from keras.layers import concatenate, Input
+from tf.keras.callbacks.callbacks import ModelCheckpoint
+from tf.keras.layers import concatenate, Dense, Embedding, Input, LSTM
+from tf.keras.models import Model
+from tf.keras.optimizers import Adam, SGD
+from tf.keras.preprocessing.sequence import pad_sequences
 
 def _split_and_pad(X_cat, lengths, seq_len, vocab_size, verbose):
     if X_cat.shape[0] != sum(lengths):
@@ -15,7 +15,7 @@ def _split_and_pad(X_cat, lengths, seq_len, vocab_size, verbose):
         tprint('Splitting {} seqs...'.format(len(lengths)))
     X_seqs = [
         X_cat[start:end].flatten()
-        for start, end in _iterate_lengths(lengths, seq_len)
+        for start, end in iterate_lengths(lengths, seq_len)
     ]
     X_pre = [
         X_seq[:i] for X_seq in X_seqs for i in range(len(X_seq))
@@ -56,6 +56,7 @@ class BiLSTMLanguageModel(object):
             embedding_dim=20,
             hidden_dim=256,
             n_hidden=2,
+            dff=512,
             n_epochs=1,
             batch_size=1000,
             cache_dir='.',
@@ -86,6 +87,7 @@ class BiLSTMLanguageModel(object):
 
         x = concatenate([ x_pre, x_post ])
 
+        x = Dense(dff, activation='relu')(x)
         output = Dense(vocab_size + 1, activation='softmax')(x)
 
         self.model_ = Model(inputs=[ input_pre, input_post ],
@@ -96,6 +98,7 @@ class BiLSTMLanguageModel(object):
         self.embedding_dim_ = embedding_dim
         self.hidden_dim_ = hidden_dim
         self.n_hidden_ = n_hidden
+        self.dff_ = dff
         self.n_epochs_ = n_epochs
         self.batch_size_ = batch_size
         self.cache_dir_ = cache_dir
@@ -128,6 +131,33 @@ class BiLSTMLanguageModel(object):
             shuffle=True, verbose=self.verbose_ > 0,
             callbacks=[ checkpoint ],
         )
+
+    def transform(self, X_cat, lengths, embed_fname=None):
+        X = _split_and_pad(
+            X_cat, lengths,
+            self.seq_len_, self.vocab_size_, self.verbose_,
+        )[0]
+
+        hidden = Model(
+            inputs=model.model_.input,
+            outputs=model.model_.get_layer('concatenate_1').output
+        )
+        hidden.compile('adam', 'mean_squared_error')
+
+        if self.verbose_:
+            tprint('Embedding...')
+        X_embed_cat = hidden.predict(X, batch_size=self.batch_size_,
+                                     verbose=self.verbose_)
+        if self.verbose_:
+            tprint('Done embedding.')
+
+        X_embed = np.array([
+            X_embed_cat[start:end]
+            for start, end in
+            iterate_lengths(lengths, self.seq_len_)
+        ])
+
+        return X_embed
 
     def score(self, X_cat, lengths):
         X, y_true = _split_and_pad(

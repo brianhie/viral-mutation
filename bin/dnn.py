@@ -1,9 +1,9 @@
 from utils import *
-from lstm import *
+from bilstm import *
 from bilstm import _split_and_pad
 
-from keras.models import Model
-from keras.layers import concatenate, Input, Reshape
+from tf.keras.models import Model
+from tf.keras.layers import concatenate, Input, Reshape
 
 class DNNLanguageModel(object):
     def __init__(
@@ -79,6 +79,33 @@ class DNNLanguageModel(object):
             shuffle=True, verbose=self.verbose_ > 0,
             callbacks=[ checkpoint ],
         )
+
+    def transform(self, X_cat, lengths, embed_fname=None):
+        X = _split_and_pad(
+            X_cat, lengths,
+            self.seq_len_, self.vocab_size_, self.verbose_,
+        )[0]
+
+        hidden = Model(
+            inputs=model.model_.input,
+            outputs=model.model_.get_layer('concatenate_1').output
+        )
+        hidden.compile('adam', 'mean_squared_error')
+
+        if self.verbose_:
+            tprint('Embedding...')
+        X_embed_cat = hidden.predict(X, batch_size=self.batch_size_,
+                                     verbose=self.verbose_)
+        if self.verbose_:
+            tprint('Done embedding.')
+
+        X_embed = np.array([
+            X_embed_cat[start:end]
+            for start, end in
+            iterate_lengths(lengths, self.seq_len_)
+        ])
+
+        return X_embed
 
     def score(self, X_cat, lengths):
         X, y_true = _split_and_pad(

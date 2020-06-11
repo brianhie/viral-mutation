@@ -34,3 +34,14 @@ def mkdir_p(path):
             pass
         else:
             raise
+
+def iterate_lengths(lengths, seq_len):
+    curr_idx = 0
+    for length in lengths:
+        if length > seq_len:
+            sys.stderr.write(
+                'Warning: length {} greather than expected '
+                'max length {}\n'.format(length, seq_len)
+            )
+        yield (curr_idx, curr_idx + length)
+        curr_idx += length

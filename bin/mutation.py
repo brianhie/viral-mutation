@@ -126,64 +126,28 @@ def train_test(args, model, seqs, vocabulary, split_seqs=None):
         report_performance(args.model_name, model, vocabulary,
                            train_seqs, val_seqs)
 
-def load_hidden_model(args, model):
-    from keras.models import Model
-    if args.model_name == 'lstm':
-        layer_name = 'lstm_{}'.format(model.n_hidden_)
-    elif args.model_name == 'bilstm':
-        layer_name = 'concatenate_1'
-    elif args.model_name == 'dnn':
-        layer_name = 'concatenate_1'
-    else:
-        raise ValueError('No embedding support for model {}'
-                         .format(args.model_name))
-    hidden = Model(
-        inputs=model.model_.input,
-        outputs=model.model_.get_layer(layer_name).output
-    )
-    hidden.compile('adam', 'mean_squared_error')
-    return hidden
-
 def embed_seqs(args, model, seqs, vocabulary,
                use_cache=False, verbose=True):
     X_cat, lengths = featurize_seqs(seqs, vocabulary)
 
-    hidden = load_hidden_model(args, model)
-
-    if args.model_name == 'lstm':
-        from lstm import _iterate_lengths, _split_and_pad
-    elif args.model_name == 'bilstm':
-        from bilstm import _iterate_lengths, _split_and_pad
-    elif args.model_name == 'dnn':
-        from dnn import _iterate_lengths, _split_and_pad
+    if use_cache:
+        mkdir_p('target/{}/embedding'.format(args.namespace))
+        embed_fname = ('target/{}/embedding/{}_{}.npy'
+                       .format(args.namespace, args.model_name, args.dim))
     else:
-        raise ValueError('No embedding support for model {}'
-                         .format(args.model_name))
+        embed_fname = None
 
-    mkdir_p('target/{}/embedding'.format(args.namespace))
-    embed_fname = ('target/{}/embedding/{}_{}.npy'
-                   .format(args.namespace, args.model_name, args.dim))
     if os.path.exists(embed_fname) and use_cache:
-        embed_cat = np.load(embed_fname)
+        X_embed = np.load(embed_fname)
     else:
-        X = _split_and_pad(
-            X_cat, lengths,
-            model.seq_len_, model.vocab_size_, verbose
-        )[0]
-        if verbose:
-            tprint('Embedding...')
-        embed_cat = hidden.predict(X, batch_size=2500, verbose=verbose)
+        X_embed = model.transform(X_cat, lengths, embed_fname)
         if use_cache:
-            np.save(embed_fname, embed_cat)
-        if verbose:
-            tprint('Done embedding.')
+            np.save(embed_fname, X_embed)
 
     sorted_seqs = sorted(seqs)
-    for seq, (start, end) in zip(
-            sorted_seqs, _iterate_lengths(lengths, model.seq_len_)):
-        embedding = embed_cat[start:end]
+    for seq_idx, seq in enumerate(sorted_seqs):
         for meta in seqs[seq]:
-            meta['embedding'] = embedding
+            meta['embedding'] = X_embed[seq_idx]
 
     return seqs
 
