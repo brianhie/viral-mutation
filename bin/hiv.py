@@ -131,7 +131,7 @@ def batch_train_test(args, model, seqs, vocabulary):
     model.n_epochs_ = 1
 
     batch_size = 10000
-    n_batches = math.ceil(len(sorted_seqs) / float(batch_size))
+    n_batches = math.ceil(len(seqs) / float(batch_size))
 
     for epoch in range(n_epochs):
         tprint('True epoch {}/{}'.format(epoch + 1, n_epochs))
@@ -155,7 +155,7 @@ def setup(args):
     seq_len = max([ len(seq) for seq in seqs ]) + 2
     vocab_size = len(AAs) + 2
 
-    model = get_model(args, seq_len, vocab_size, batch_size=32)
+    model = get_model(args, seq_len, vocab_size)
 
     return model, seqs
 

@@ -3,7 +3,9 @@ from utils import *
 import tensorflow as tf
 from tensorflow.keras import Input
 from tensorflow.keras.callbacks import ModelCheckpoint
-from tensorflow.keras.layers import concatenate, Dense, Embedding, LSTM, Reshape
+from tensorflow.keras.layers import (
+    concatenate, Activation, Dense, Embedding, LSTM, Reshape)
+from tensorflow.keras.mixed_precision import experimental as mixed_precision
 from tensorflow.keras.models import Model, Sequential
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.preprocessing.sequence import pad_sequences
@@ -218,6 +220,9 @@ class LSTMLanguageModel(LanguageModel):
     ):
         super().__init__(seed=seed,)
 
+        policy = mixed_precision.Policy('mixed_float16')
+        mixed_precision.set_policy(policy)
+
         model = Sequential()
         model.add(Embedding(vocab_size + 1, embedding_dim,
                             input_length=seq_len - 1))
@@ -227,7 +232,8 @@ class LSTMLanguageModel(LanguageModel):
         model.add(LSTM(hidden_dim, name='embed_layer'))
 
         model.add(Dense(dff, activation='relu'))
-        model.add(Dense(vocab_size + 1, activation='softmax'))
+        model.add(Dense(vocab_size + 1))
+        model.add(Activation('softmax', dtype='float32'))
 
         self.model_ = model
 
@@ -288,6 +294,9 @@ class BiLSTMLanguageModel(LanguageModel):
     ):
         super().__init__(seed=seed,)
 
+        policy = mixed_precision.Policy('mixed_float16')
+        mixed_precision.set_policy(policy)
+
         input_pre = Input(shape=(seq_len - 1,))
         input_post = Input(shape=(seq_len - 1,))
 
@@ -307,8 +316,9 @@ class BiLSTMLanguageModel(LanguageModel):
         x = concatenate([ x_pre, x_post ],
                         name='embed_layer')
 
-        #x = Dense(dff, activation='relu')(x)
-        output = Dense(vocab_size + 1, activation='softmax')(x)
+        x = Dense(dff, activation='relu')(x)
+        x = Dense(vocab_size + 1)(x)
+        output = Activation('softmax', dtype='float32')(x)
 
         self.model_ = Model(inputs=[ input_pre, input_post ],
                             outputs=output)
