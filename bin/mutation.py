@@ -3,8 +3,7 @@ from utils import *
 def err_model(name):
     raise ValueError('Model {} not supported'.format(name))
 
-def get_model(args, seq_len, vocab_size, batch_size=1000,
-              fp_precision='float32'):
+def get_model(args, seq_len, vocab_size, batch_size=1000,):
     if args.model_name == 'hmm':
         from hmmlearn.hmm import MultinomialHMM
         model = MultinomialHMM(
@@ -19,7 +18,7 @@ def get_model(args, seq_len, vocab_size, batch_size=1000,
             init_params='ste'
         )
     elif args.model_name == 'dnn':
-        from dnn import DNNLanguageModel
+        from language_model import DNNLanguageModel
         model = DNNLanguageModel(
             seq_len,
             vocab_size,
@@ -29,11 +28,11 @@ def get_model(args, seq_len, vocab_size, batch_size=1000,
             n_epochs=args.n_epochs,
             batch_size=batch_size,
             cache_dir='target/{}'.format(args.namespace),
-            fp_precision=fp_precision,
-            verbose=2,
+            seed=args.seed,
+            verbose=True,
         )
     elif args.model_name == 'lstm':
-        from lstm import LSTMLanguageModel
+        from language_model import LSTMLanguageModel
         model = LSTMLanguageModel(
             seq_len,
             vocab_size,
@@ -43,11 +42,11 @@ def get_model(args, seq_len, vocab_size, batch_size=1000,
             n_epochs=args.n_epochs,
             batch_size=batch_size,
             cache_dir='target/{}'.format(args.namespace),
-            fp_precision=fp_precision,
-            verbose=2,
+            seed=args.seed,
+            verbose=True,
         )
     elif args.model_name == 'bilstm':
-        from bilstm import BiLSTMLanguageModel
+        from language_model import BiLSTMLanguageModel
         model = BiLSTMLanguageModel(
             seq_len,
             vocab_size,
@@ -57,8 +56,22 @@ def get_model(args, seq_len, vocab_size, batch_size=1000,
             n_epochs=args.n_epochs,
             batch_size=batch_size,
             cache_dir='target/{}'.format(args.namespace),
-            fp_precision=fp_precision,
-            verbose=2,
+            seed=args.seed,
+            verbose=True,
+        )
+    elif args.model_name == 'attention':
+        from language_model import AttentionLanguageModel
+        model = AttentionLanguageModel(
+            seq_len,
+            vocab_size,
+            embedding_dim=20,
+            hidden_dim=args.dim,
+            n_hidden=4,
+            n_epochs=args.n_epochs,
+            batch_size=500,#batch_size,
+            cache_dir='target/{}'.format(args.namespace),
+            seed=args.seed,
+            verbose=True,
         )
     else:
         err_model(args.model_name)
@@ -80,18 +93,7 @@ def featurize_seqs(seqs, vocabulary):
 
 def fit_model(name, model, seqs, vocabulary):
     X, lengths = featurize_seqs(seqs, vocabulary)
-
-    if name == 'hmm':
-        model.fit(X, lengths)
-    elif name == 'dnn':
-        model.fit(X, lengths)
-    elif name == 'lstm':
-        model.fit(X, lengths)
-    elif name == 'bilstm':
-        model.fit(X, lengths)
-    else:
-        err_model(name)
-
+    model.fit(X, lengths)
     return model
 
 def cross_entropy(logprob, n_samples):
@@ -156,18 +158,7 @@ def predict_sequence_prob(args, seq_of_interest, vocabulary, model,
     seqs = { seq_of_interest: [ {} ] }
     X_cat, lengths = featurize_seqs(seqs, vocabulary)
 
-    if args.model_name == 'lstm':
-        from lstm import _split_and_pad
-    elif args.model_name == 'bilstm':
-        from bilstm import _split_and_pad
-    else:
-        raise ValueError('No combinatorial fitness '
-                         'support for model {}'
-                         .format(args.model_name))
-
-    X = _split_and_pad(X_cat, lengths, model.seq_len_,
-                       model.vocab_size_, verbose)[0]
-    y_pred = model.model_.predict(X, batch_size=2500)
+    y_pred = model.predict(X_cat, lengths)
     assert(y_pred.shape[0] == len(seq_of_interest) + 2)
 
     return y_pred

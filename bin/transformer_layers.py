@@ -113,8 +113,8 @@ def point_wise_feed_forward_network(d_model, dff):
     ])
 
 class EncoderLayer(tf.keras.layers.Layer):
-    def __init__(self, d_model, num_heads, dff, rate=0.1):
-        super(EncoderLayer, self).__init__()
+    def __init__(self, d_model, num_heads, dff, rate=0.1, **kwargs):
+        super(EncoderLayer, self).__init__(**kwargs)
 
         self.mha = MultiHeadAttention(d_model, num_heads)
         self.ffn = point_wise_feed_forward_network(d_model, dff)
@@ -127,7 +127,7 @@ class EncoderLayer(tf.keras.layers.Layer):
 
     def call(self, x, mask):
         # (batch_size, input_seq_len, d_model)
-        attn_output, attn_weights = self.mha(x, x, x, mask)
+        attn_output, _ = self.mha(x, x, x, mask)
         attn_output = self.dropout1(attn_output)
 
         # (batch_size, input_seq_len, d_model)
@@ -138,11 +138,11 @@ class EncoderLayer(tf.keras.layers.Layer):
         ffn_output = self.dropout2(ffn_output)
         out2 = self.layernorm2(out1 + ffn_output)
 
-        return out2, attn_weights
+        return out2
 
 class DecoderLayer(tf.keras.layers.Layer):
-    def __init__(self, d_model, num_heads, dff, rate=0.1):
-        super(DecoderLayer, self).__init__()
+    def __init__(self, d_model, num_heads, dff, rate=0.1, **kwargs):
+        super(DecoderLayer, self).__init__(**kwargs)
 
         self.mha1 = MultiHeadAttention(d_model, num_heads)
         self.mha2 = MultiHeadAttention(d_model, num_heads)
@@ -181,8 +181,8 @@ class DecoderLayer(tf.keras.layers.Layer):
 
 class Encoder(tf.keras.layers.Layer):
     def __init__(self, num_layers, d_model, num_heads, dff, input_vocab_size,
-                 maximum_position_encoding, rate=0.1):
-        super(Encoder, self).__init__()
+                 maximum_position_encoding, rate=0.1, **kwargs):
+        super(Encoder, self).__init__(**kwargs)
 
         self.d_model = d_model
         self.num_layers = num_layers
@@ -197,7 +197,7 @@ class Encoder(tf.keras.layers.Layer):
 
         self.dropout = tf.keras.layers.Dropout(rate)
 
-    def call(self, x, mask, return_weights=False):
+    def call(self, x, mask):
 
         seq_len = tf.shape(x)[1]
 
@@ -209,19 +209,15 @@ class Encoder(tf.keras.layers.Layer):
         x = self.dropout(x)
 
         for i in range(self.num_layers):
-            x, attn_weights = self.enc_layers[i](x, mask)
+            x = self.enc_layers[i](x, mask)
 
-        if return_weights:
-            attention_weights['encoder_layer{}'.format(i+1)] = attn_weights
-            return x, attention_weights
-
-        return x  # (batch_size, input_seq_len, d_model)
+        return x # (batch_size, input_seq_len, d_model)
 
 class Decoder(tf.keras.layers.Layer):
     def __init__(self, num_layers, d_model, num_heads, dff,
                  target_vocab_size, maximum_position_encoding,
-                 rate=0.1):
-        super(Decoder, self).__init__()
+                 rate=0.1, **kwargs):
+        super(Decoder, self).__init__(**kwargs)
 
         self.d_model = d_model
         self.num_layers = num_layers
@@ -269,8 +265,9 @@ class Transformer(tf.keras.Model):
             num_heads=8,
             dff=2048,
             dropout_rate=0.1,
+            **kwargs
     ):
-        super(Transformer, self).__init__()
+        super(Transformer, self).__init__(**kwargs)
 
         self.encoder = Encoder(
             num_layers, d_model, num_heads, dff,
@@ -298,8 +295,8 @@ class Transformer(tf.keras.Model):
         return final_output, attention_weights
 
 class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
-    def __init__(self, d_model, warmup_steps=4000):
-        super(CustomSchedule, self).__init__()
+    def __init__(self, d_model, warmup_steps=4000, **kwargs):
+        super(CustomSchedule, self).__init__(**kwargs)
 
         self.d_model = d_model
         self.d_model = tf.cast(self.d_model, tf.float32)

@@ -14,6 +14,8 @@ def parse_args():
                         help='Embedding dimension')
     parser.add_argument('--n-epochs', type=int, default=20,
                         help='Number of training epochs')
+    parser.add_argument('--seed', type=int, default=1,
+                        help='Random seed')
     parser.add_argument('--checkpoint', type=str, default=None,
                         help='Model checkpoint')
     parser.add_argument('--train', action='store_true',
