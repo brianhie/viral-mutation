@@ -307,7 +307,7 @@ class BiLSTMLanguageModel(LanguageModel):
         x = concatenate([ x_pre, x_post ],
                         name='embed_layer')
 
-        x = Dense(dff, activation='relu')(x)
+        #x = Dense(dff, activation='relu')(x)
         output = Dense(vocab_size + 1, activation='softmax')(x)
 
         self.model_ = Model(inputs=[ input_pre, input_post ],

@@ -15,6 +15,8 @@ def parse_args():
                         help='Model namespace')
     parser.add_argument('--dim', type=int, default=256,
                         help='Embedding dimension')
+    parser.add_argument('--batch-size', type=int, default=1000,
+                        help='Training minibatch size')
     parser.add_argument('--n-epochs', type=int, default=20,
                         help='Number of training epochs')
     parser.add_argument('--seed', type=int, default=1,
