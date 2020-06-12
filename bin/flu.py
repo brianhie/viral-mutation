@@ -341,7 +341,7 @@ if __name__ == '__main__':
     AAs = [
         'A', 'R', 'N', 'D', 'C', 'Q', 'E', 'G', 'H',
         'I', 'L', 'K', 'M', 'F', 'P', 'S', 'T', 'W',
-        'Y', 'V', 'X', 'Z', 'J', 'U', 'B', 'Z'
+        'Y', 'V', 'X', 'Z', 'J', 'U', 'B',
     ]
     vocabulary = { aa: idx + 1 for idx, aa in enumerate(sorted(AAs)) }
 
