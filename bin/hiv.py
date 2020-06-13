@@ -122,7 +122,7 @@ def split_seqs(seqs, split_method='random'):
 
     return train_seqs, test_seqs
 
-def batch_train_test(args, model, seqs, vocabulary):
+def batch_train(args, model, seqs, vocabulary):
     assert(args.train)
 
     # Control epochs here.
@@ -143,6 +143,18 @@ def batch_train_test(args, model, seqs, vocabulary):
             end = (batchi + 1) * batch_size
             seqs_batch = { seq: seqs[seq] for seq in perm_seqs[start:end] }
             train_test(args, model, seqs_batch, vocabulary)
+
+        fname_prefix = ('target/{0}/checkpoint/{1}/{1}_{2}'
+                        .format(args.namespace, args.model_name, args.dim))
+
+        if epoch == 0:
+            os.rename('{}-01.hdf5'.format(fname_prefix),
+                      '{}-00.hdf5'.format(fname_prefix))
+        else:
+            os.rename('{}-01.hdf5'.format(fname_prefix),
+                      '{}-{:02d}.hdf5'.format(fname_prefix, epoch + 1))
+    os.rename('{}-00.hdf5'.format(fname_prefix),
+              '{}-01.hdf5'.format(fname_prefix))
 
 def setup(args):
     fnames = [ 'data/hiv/HIV-1_env_samelen.fa' ]
@@ -245,7 +257,7 @@ if __name__ == '__main__':
         tprint(model.model_.summary())
 
     if args.train:
-        batch_train_test(args, model, seqs, vocabulary)
+        batch_train(args, model, seqs, vocabulary)
 
     if args.train_split or args.test:
         train_test(args, model, seqs, vocabulary, split_seqs)

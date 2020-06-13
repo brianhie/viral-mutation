@@ -15,13 +15,13 @@ class LanguageModel(object):
         if seed is not None:
             tf.random.set_seed(seed)
 
-        physical_devices = tf.config.list_physical_devices('GPU')
-        try:
-            for device in physical_devices:
-                tf.config.experimental.set_memory_growth(device, True)
-        except:
-            # Invalid device or cannot modify virtual devices once initialized.
-            pass
+        #physical_devices = tf.config.list_physical_devices('GPU')
+        #try:
+        #    for device in physical_devices:
+        #        tf.config.experimental.set_memory_growth(device, True)
+        #except:
+        #    # Invalid device or cannot modify virtual devices once initialized.
+        #    pass
 
     def split_and_pad(self, *args, **kwargs):
         raise NotImplementedError('Use LM instantiation instead.')
@@ -316,7 +316,7 @@ class BiLSTMLanguageModel(LanguageModel):
         x = concatenate([ x_pre, x_post ],
                         name='embed_layer')
 
-        x = Dense(dff, activation='relu')(x)
+        #x = Dense(dff, activation='relu')(x)
         x = Dense(vocab_size + 1)(x)
         output = Activation('softmax', dtype='float32')(x)
 
@@ -398,6 +398,9 @@ class AttentionLanguageModel(LanguageModel):
     ):
         super().__init__(seed=seed,)
 
+        policy = mixed_precision.Policy('mixed_float16')
+        mixed_precision.set_policy(policy)
+
         input_ = Input(shape=(seq_len - 1,))
 
         from transformer_layers import Encoder
@@ -410,8 +413,9 @@ class AttentionLanguageModel(LanguageModel):
 
         x = Reshape((hidden_dim * (seq_len - 1),))(x)
 
-        x = Dense(dff, activation='relu')(x)
-        output = Dense(vocab_size + 1, activation='softmax')(x)
+        #x = Dense(dff, activation='relu')(x)
+        x = Dense(vocab_size + 1)(x)
+        output = Activation('softmax', dtype='float32')(x)
 
         self.model_ = Model(inputs=input_, outputs=output)
 

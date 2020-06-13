@@ -66,7 +66,7 @@ def get_model(args, seq_len, vocab_size,):
             vocab_size,
             embedding_dim=20,
             hidden_dim=args.dim,
-            n_hidden=4,
+            n_hidden=2,
             n_epochs=args.n_epochs,
             batch_size=args.batch_size,
             cache_dir='target/{}'.format(args.namespace),
