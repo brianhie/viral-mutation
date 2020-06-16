@@ -15,7 +15,7 @@ def parse_args():
                         help='Model namespace')
     parser.add_argument('--dim', type=int, default=256,
                         help='Embedding dimension')
-    parser.add_argument('--batch-size', type=int, default=1000,
+    parser.add_argument('--batch-size', type=int, default=500,
                         help='Training minibatch size')
     parser.add_argument('--n-epochs', type=int, default=20,
                         help='Number of training epochs')
@@ -122,40 +122,6 @@ def split_seqs(seqs, split_method='random'):
 
     return train_seqs, test_seqs
 
-def batch_train(args, model, seqs, vocabulary):
-    assert(args.train)
-
-    # Control epochs here.
-    n_epochs = args.n_epochs
-    args.n_epochs = 1
-    model.n_epochs_ = 1
-
-    batch_size = 10000
-    n_batches = math.ceil(len(seqs) / float(batch_size))
-
-    for epoch in range(n_epochs):
-        tprint('True epoch {}/{}'.format(epoch + 1, n_epochs))
-        perm_seqs = [ str(s) for s in seqs.keys() ]
-        random.shuffle(perm_seqs)
-
-        for batchi in range(n_batches):
-            start = batchi * batch_size
-            end = (batchi + 1) * batch_size
-            seqs_batch = { seq: seqs[seq] for seq in perm_seqs[start:end] }
-            train_test(args, model, seqs_batch, vocabulary)
-
-        fname_prefix = ('target/{0}/checkpoint/{1}/{1}_{2}'
-                        .format(args.namespace, args.model_name, args.dim))
-
-        if epoch == 0:
-            os.rename('{}-01.hdf5'.format(fname_prefix),
-                      '{}-00.hdf5'.format(fname_prefix))
-        else:
-            os.rename('{}-01.hdf5'.format(fname_prefix),
-                      '{}-{:02d}.hdf5'.format(fname_prefix, epoch + 1))
-    os.rename('{}-00.hdf5'.format(fname_prefix),
-              '{}-01.hdf5'.format(fname_prefix))
-
 def setup(args):
     fnames = [ 'data/hiv/HIV-1_env_samelen.fa' ]
     meta_fnames = [ 'data/hiv/HIV-1_env_samelen.fa' ]
@@ -257,7 +223,7 @@ if __name__ == '__main__':
         tprint(model.model_.summary())
 
     if args.train:
-        batch_train(args, model, seqs, vocabulary)
+        batch_train(args, model, seqs, vocabulary, batch_size=5000)
 
     if args.train_split or args.test:
         train_test(args, model, seqs, vocabulary, split_seqs)

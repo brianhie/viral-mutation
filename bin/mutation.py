@@ -139,7 +139,7 @@ def embed_seqs(args, model, seqs, vocabulary,
     else:
         embed_fname = None
 
-    if os.path.exists(embed_fname) and use_cache:
+    if use_cache and os.path.exists(embed_fname):
         X_embed = np.load(embed_fname)
     else:
         X_embed = model.transform(X_cat, lengths, embed_fname)
@@ -206,10 +206,8 @@ def analyze_semantics(args, model, vocabulary, seq_to_mutate, escape_seqs,
                 except ValueError:
                     of.write('NA\n')
 
-    prob_seqs = embed_seqs(
-        args, model, prob_seqs, vocabulary,
-        use_cache=False, verbose=verbose
-    )
+    prob_seqs = embed_seqs(args, model, prob_seqs, vocabulary,
+                           use_cache=False, verbose=verbose)
     base_embedding = prob_seqs[seq_to_mutate][0]['embedding']
     seq_change = {}
     for seq in seqs:

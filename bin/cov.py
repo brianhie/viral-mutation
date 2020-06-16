@@ -15,8 +15,12 @@ def parse_args():
                         help='Model namespace')
     parser.add_argument('--dim', type=int, default=256,
                         help='Embedding dimension')
+    parser.add_argument('--batch-size', type=int, default=1000,
+                        help='Training minibatch size')
     parser.add_argument('--n-epochs', type=int, default=20,
                         help='Number of training epochs')
+    parser.add_argument('--seed', type=int, default=1,
+                        help='Random seed')
     parser.add_argument('--checkpoint', type=str, default=None,
                         help='Model checkpoint')
     parser.add_argument('--train', action='store_true',
@@ -99,7 +103,7 @@ def setup(args):
     seq_len = max([ len(seq) for seq in seqs ]) + 2
     vocab_size = len(AAs) + 2
 
-    model = get_model(args, seq_len, vocab_size, batch_size=500)
+    model = get_model(args, seq_len, vocab_size)
 
     return model, seqs
 
@@ -195,7 +199,10 @@ if __name__ == '__main__':
         tprint('Model summary:')
         tprint(model.model_.summary())
 
-    if args.train or args.train_split or args.test:
+    if args.train:
+        batch_train(args, model, seqs, vocabulary, batch_size=1000)
+
+    if args.train_split or args.test:
         train_test(args, model, seqs, vocabulary, split_seqs)
 
     if args.embed:

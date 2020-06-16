@@ -60,32 +60,30 @@ def cached_escape_semantics(cache_fname, beta, plot=True,
     print('Max rank: {} / {}'.format(np.max(escape_rank_dist), size))
     print('Rank stdev: {} / {}'.format(np.std(escape_rank_dist), size))
 
+    max_consider = len(prob)
+    n_consider = np.array([ i + 1 for i in range(max_consider) ])
+
+    n_escape = np.array([ sum(escape_rank_dist <= i + 1)
+                          for i in range(max_consider) ])
+    norm = max(n_consider) * max(n_escape)
+    norm_auc = auc(n_consider, n_escape) / norm
+
+    escape_rank_prob = ss.rankdata(-data['prob'])[escape_idx]
+    n_escape_prob = np.array([ sum(escape_rank_prob <= i + 1)
+                               for i in range(max_consider) ])
+    norm_auc_prob = auc(n_consider, n_escape_prob) / norm
+
+    escape_rank_change = ss.rankdata(-data['change'])[escape_idx]
+    n_escape_change = np.array([ sum(escape_rank_change <= i + 1)
+                                 for i in range(max_consider) ])
+    norm_auc_change = auc(n_consider, n_escape_change) / norm
+
     if plot:
-        max_consider = len(prob)
-        n_consider = np.array([ i + 1 for i in range(max_consider) ])
-
-        n_escape = np.array([ sum(escape_rank_dist <= i + 1)
-                              for i in range(max_consider) ])
-        norm = max(n_consider) * max(n_escape)
-        norm_auc = auc(n_consider, n_escape) / norm
-
-        escape_rank_prob = ss.rankdata(-data['prob'])[escape_idx]
-        n_escape_prob = np.array([ sum(escape_rank_prob <= i + 1)
-                                   for i in range(max_consider) ])
-        norm_auc_prob = auc(n_consider, n_escape_prob) / norm
-
-        escape_rank_change = ss.rankdata(-data['change'])[escape_idx]
-        n_escape_change = np.array([ sum(escape_rank_change <= i + 1)
-                                     for i in range(max_consider) ])
-        norm_auc_change = auc(n_consider, n_escape_change) / norm
-
-        escape_frac = len(escape_prob) / len(prob)
-
         plt.figure()
         plt.plot(n_consider, n_escape)
         plt.plot(n_consider, n_escape_change, c='C0', linestyle='-.')
         plt.plot(n_consider, n_escape_prob, c='C0', linestyle=':')
-        plt.plot(n_consider, n_consider * escape_frac,
+        plt.plot(n_consider, n_consider * (len(escape_prob) / len(prob)),
                  c='gray', linestyle='--')
 
         plt.xlabel(r'$ \log_{10}() $')
@@ -106,6 +104,14 @@ def cached_escape_semantics(cache_fname, beta, plot=True,
         plt.savefig('figures/{}_consider_escape.png'
                     .format(namespace), dpi=300)
         plt.close()
+
+
+    print('Escape semantics, beta = {} [{}]'
+          .format(beta, namespace))
+
+    print('AUC (CSCS): {}'.format(norm_auc))
+    print('AUC (semantic change onlny): {}'.format(norm_auc_change))
+    print('AUC (grammaticality onlny): {}'.format(norm_auc_prob))
 
     print('{:.4g} (mean log prob), {:.4g} (mean log prob escape), '
           '{:.4g} (p-value)'
