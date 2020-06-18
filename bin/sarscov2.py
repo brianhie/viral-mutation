@@ -8,10 +8,10 @@ random.seed(1)
 
 def parse_args():
     import argparse
-    parser = argparse.ArgumentParser(description='CoV sequence analysis')
+    parser = argparse.ArgumentParser(description='SARS-CoV-2 sequence analysis')
     parser.add_argument('model_name', type=str,
                         help='Type of language model (e.g., hmm, lstm)')
-    parser.add_argument('--namespace', type=str, default='cov',
+    parser.add_argument('--namespace', type=str, default='sarscov2',
                         help='Model namespace')
     parser.add_argument('--dim', type=int, default=256,
                         help='Embedding dimension')
@@ -38,13 +38,8 @@ def parse_args():
 
 def parse_meta(entry):
     fields = entry.split('|')
-    if fields[7] == 'NA':
-        date = None
-    else:
-        date = fields[7].split('/')[0]
-        date = dparse(date.replace('_', '-'))
 
-    country = fields[9]
+    country = fields[3]
     from locations import country2continent
     if country in country2continent:
         continent = country2continent[country]
@@ -53,10 +48,7 @@ def parse_meta(entry):
         continent = 'NA'
 
     meta = {
-        'prot_name': fields[1],
-        'strain': fields[5],
-        'date': date,
-        'host': fields[8],
+        'prot_id': fields[0].rstrip(),
         'country': country,
         'continent': continent,
     }
@@ -65,12 +57,18 @@ def parse_meta(entry):
 def process(fnames):
     seqs = {}
     for fname in fnames:
+        if fname == 'data/cov/viprbrc_db.fasta':
+            from cov import parse_meta as parse_viprbrc
         for record in SeqIO.parse(fname, 'fasta'):
-            if len(record.seq) < 1000:
+            if len(record.seq) < 1250 or \
+               len(record.seq) > 1300:
                 continue
             if record.seq not in seqs:
                 seqs[record.seq] = []
-            meta = parse_meta(record.description)
+            if fname == 'data/cov/viprbrc_db.fasta':
+                meta = parse_viprbrc(record.description)
+            else:
+                meta = parse_meta(record.description)
             seqs[record.seq].append(meta)
     return seqs
 
@@ -80,31 +78,20 @@ def split_seqs(seqs, split_method='random'):
 
         train_seqs, test_seqs = {}, {}
 
-        new_cutoff = dparse('06-01-2018')
-
         tprint('Splitting seqs...')
-        for seq in seqs:
-            # Pick validation set based on date.
-            seq_dates = [
-                meta['date'] for meta in seqs[seq]
-                if meta['date'] is not None
-            ]
-            if len(seq_dates) == 0:
+        for idx, seq in enumerate(seqs):
+            if idx % 10 < 2:
                 test_seqs[seq] = seqs[seq]
-                continue
-            if len(seq_dates) > 0:
-                oldest_date = sorted(seq_dates)[0]
-                if oldest_date >= new_cutoff:
-                    test_seqs[seq] = seqs[seq]
-                    continue
-            train_seqs[seq] = seqs[seq]
+            else:
+                train_seqs[seq] = seqs[seq]
         tprint('{} train seqs, {} test seqs.'
                .format(len(train_seqs), len(test_seqs)))
 
     return train_seqs, test_seqs
 
 def setup(args):
-    fnames = [ 'data/cov/viprbrc_db.fasta' ]
+    fnames = [ 'data/cov/sars_cov2_seqs.fa',
+               'data/cov/viprbrc_db.fasta' ]
 
     with warnings.catch_warnings():
         warnings.simplefilter('ignore', BiopythonWarning)
@@ -139,15 +126,7 @@ def seq_clusters(adata):
                 of.write('>cluster{}_{}_{}\n'.format(cluster, i, count))
                 of.write(seq + '\n\n')
 
-def plot_umap(adata, namespace='cov'):
-    sc.pl.umap(adata, color='date',
-               save='_{}_date.png'.format(namespace))
-    sc.pl.umap(adata, color='country',
-               save='_{}_country.png'.format(namespace))
-    sc.pl.umap(adata, color='host',
-               save='_{}_host.png'.format(namespace))
-    sc.pl.umap(adata, color='prot_name',
-               save='_{}_prot.png'.format(namespace))
+def plot_umap(adata, namespace='sarscov2'):
     sc.pl.umap(adata, color='louvain',
                save='_{}_louvain.png'.format(namespace))
     sc.pl.umap(adata, color='n_seq',
@@ -188,9 +167,6 @@ def analyze_embedding(args, model, seqs, vocabulary):
 
     interpret_clusters(adata)
     #seq_clusters(adata)
-
-    plot_umap(adata[adata.obs['louvain'] == '7'],
-              namespace='cov7')
 
 if __name__ == '__main__':
     args = parse_args()
