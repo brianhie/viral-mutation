@@ -21,6 +21,23 @@ matlab -r "fasta_name = '../target/flu/clusters/all_h3.fasta'; mut_name = '../ta
 matlab -r "fasta_name = '../target/hiv/clusters/all_BG505.fasta'; mut_name = '../target/hiv/mutation/mutations_hiv.fa'; main_MPF_BML(fasta_name, mut_name)"
 cd ..
 
+#########################
+## Potts (EVcouplings) ##
+#########################
+
+evcouplings_runcfg data/evcouplings/flu_h1_config.yaml > \
+                   evcouplings_flu_h1.log 2>&1
+evcouplings_runcfg data/evcouplings/flu_h3_config.yaml > \
+                   evcouplings_flu_h3.log 2>&1
+evcouplings_runcfg data/evcouplings/hiv_env_config.yaml > \
+                   evcouplings_hiv_env.log 2>&1
+
+mkdir -p target/flu/evcouplings
+mkdir -p target/hiv/evcouplings
+mv flu_h1 target/flu/evcouplings/
+mv flu_h3 target/flu/evcouplings/
+mv hiv_env target/hiv/evcouplings/
+
 ######################
 ## TAPE Transformer ##
 ######################
@@ -74,7 +91,7 @@ tape-embed unirep \
 ## Final calculations ##
 ########################
 
-declare -a methods=("bepler" "energy" "ecouple" "freq" "tape" "unirep")
+declare -a methods=("bepler" "energy" "evcouplings" "freq" "tape" "unirep")
 declare -a viruses=("h1" "h3" "hiv")
 
 for method in ${methods[@]}

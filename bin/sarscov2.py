@@ -49,6 +49,7 @@ def parse_meta(entry):
 
     meta = {
         'prot_id': fields[0].rstrip(),
+        'host': 'human',
         'country': country,
         'continent': continent,
     }

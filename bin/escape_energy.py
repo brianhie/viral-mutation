@@ -13,6 +13,34 @@ def parse_args():
     args = parser.parse_args()
     return args
 
+def plot_result(rank_vals, escape_idx, virus, fname_prefix,
+                legend_name='Result'):
+    acq_argsort = ss.rankdata(-rank_vals)
+    escape_rank_dist = acq_argsort[escape_idx]
+
+    n_consider = np.array([ i + 1 for i in range(len(rank_vals)) ])
+
+    n_escape = np.array([ sum(escape_rank_dist <= i + 1)
+                          for i in range(len(rank_vals)) ])
+    norm = max(n_consider) * max(n_escape)
+    norm_auc = auc(n_consider, n_escape) / norm
+
+    escape_frac = len(escape_rank_dist) / float(len(rank_vals))
+
+    plt.figure()
+    plt.plot(n_consider, n_escape)
+    plt.plot(n_consider, n_consider * escape_frac,
+             c='gray', linestyle='--')
+    plt.legend([
+        r'{}, AUC = {:.3f}'.format(legend_name, norm_auc),
+        'Random guessing, AUC = 0.500'
+    ])
+    plt.xlabel('Top N')
+    plt.ylabel('Number of escape mutations in top N')
+    plt.savefig('figures/{}_{}_escape.png'
+                .format(virus, fname_prefix), dpi=300)
+    plt.close()
+
 def escape_energy(virus):
     if virus == 'h1':
         from escape import load_lee2018
@@ -47,31 +75,85 @@ def escape_energy(virus):
     assert(len(escape_idx) == len(seqs_escape) - 1)
 
     mut_energies = energies[len(train_seqs):]
-    acq_argsort = ss.rankdata(-mut_energies)
-    escape_rank_dist = acq_argsort[escape_idx]
 
-    max_consider = len(mut_seqs)
-    n_consider = np.array([ i + 1 for i in range(max_consider) ])
+    plot_result(mut_energies, escape_idx, virus, 'energy',
+                legend_name='Potts model energy')
 
-    n_escape = np.array([ sum(escape_rank_dist <= i + 1)
-                          for i in range(max_consider) ])
-    norm = max(n_consider) * max(n_escape)
-    norm_auc = auc(n_consider, n_escape) / norm
+def escape_evcouplings(virus):
+    if virus == 'h1':
+        from escape import load_lee2018
+        seq, seqs_escape = load_lee2018()
+        train_fname = 'target/flu/clusters/all_h1.fasta'
+        mut_fname = 'target/flu/mutation/mutations_h1.fa'
+        energy_fname = ('target/flu/evcouplings/flu_h1/mutate/'
+                        'flu_h1_single_mutant_matrix.csv')
+        anchor_id = ('gb:LC333185|ncbiId:BBB04702.1|UniProtKB:-N/A-|'
+                     'Organism:Influenza')
+    elif virus == 'h3':
+        from escape import load_lee2019
+        seq, seqs_escape = load_lee2019()
+        train_fname = 'target/flu/clusters/all_h3.fasta'
+        mut_fname = 'target/flu/mutation/mutations_h3.fa'
+        energy_fname = ('target/flu/evcouplings/flu_h3/mutate/'
+                        'flu_h3_single_mutant_matrix.csv')
+        anchor_id = 'Reference_Perth2009_HA_coding_sequence'
+    elif virus == 'hiv':
+        from escape import load_dingens2019
+        seq, seqs_escape = load_dingens2019()
+        train_fname = 'target/hiv/clusters/all_BG505.fasta'
+        mut_fname = 'target/hiv/mutation/mutations_hiv.fa'
+        energy_fname = ('target/hiv/evcouplings/hiv_env/mutate/'
+                        'hiv_env_single_mutant_matrix.csv')
+        anchor_id = 'A1.KE.-.BG505_W6M_ENV_C2.DQ208458'
+    else:
+        raise ValueError('invalid option {}'.format(virus))
 
-    escape_frac = len(seqs_escape) / len(mut_seqs)
+    anchor = None
+    for idx, record in enumerate(SeqIO.parse(train_fname, 'fasta')):
+        if record.id == anchor_id:
+            anchor = str(record.seq).replace('-', '')
+    assert(anchor is not None)
 
-    plt.figure()
-    plt.plot(n_consider, n_escape)
-    plt.plot(n_consider, n_consider * escape_frac,
-             c='gray', linestyle='--')
-    plt.legend([
-        r'Potts model energy, AUC = {:.3f}'.format(norm_auc),
-        'Random guessing, AUC = 0.500'
-    ])
-    plt.xlabel('Top N')
-    plt.ylabel('Number of escape mutations in top N')
-    plt.savefig('figures/{}_energy_escape.png'.format(virus), dpi=300)
-    plt.close()
+    pos_aa_score_epi = {}
+    pos_aa_score_ind = {}
+    with open(energy_fname) as f:
+        f.readline()
+        for line in f:
+            fields = line.rstrip().split(',')
+            pos = int(fields[2]) - 1
+            orig, mut = fields[3], fields[4]
+            assert(anchor[pos] == orig)
+            pos_aa_score_epi[(pos, mut)] = float(fields[7])
+            pos_aa_score_ind[(pos, mut)] = float(fields[8])
+
+    mutations = [
+        str(record.seq)
+        for record in SeqIO.parse(mut_fname, 'fasta')
+    ]
+
+    escape_idx = []
+    mut_scores_epi, mut_scores_ind = [], []
+    for mut_idx, mutation in enumerate(mutations):
+        mutation = mutation.replace('-', '')
+        if mutation in seqs_escape:
+            escape_idx.append(mut_idx)
+        didx = [ c1 != c2
+                 for c1, c2 in zip(anchor, mutation) ].index(True)
+        if (didx, mutation[didx]) in pos_aa_score_epi:
+            mut_scores_epi.append(pos_aa_score_epi[(didx, mutation[didx])])
+            mut_scores_ind.append(pos_aa_score_ind[(didx, mutation[didx])])
+        else:
+            mut_scores_epi.append(0)
+            mut_scores_ind.append(0)
+    assert(len(escape_idx) == len(seqs_escape) - 1)
+
+    mut_scores_epi = np.array(mut_scores_epi)
+    mut_scores_ind = np.array(mut_scores_ind)
+
+    plot_result(-mut_scores_epi, escape_idx, virus, 'evcouplings_epi',
+                legend_name='EVcouplings (epistatic)')
+    plot_result(-mut_scores_ind, escape_idx, virus, 'evcouplings_ind',
+                legend_name='EVcouplings (independent)')
 
 def escape_freq(virus):
     if virus == 'h1':
@@ -90,7 +172,7 @@ def escape_freq(virus):
     elif virus == 'hiv':
         from escape import load_dingens2019
         seq, seqs_escape = load_dingens2019()
-        train_fname = 'target/hiv/clusters/all_BG505.fasta'
+        train_fname = 'target/hiv/clusters/all.fasta'
         mut_fname = 'target/hiv/mutation/mutations_hiv.fa'
         anchor_id = 'A1.KE.-.BG505_W6M_ENV_C2.DQ208458'
     else:
@@ -128,31 +210,8 @@ def escape_freq(virus):
     mut_freqs = np.array(mut_freqs)
     assert(len(escape_idx) == len(seqs_escape) - 1)
 
-    acq_argsort = ss.rankdata(-mut_freqs)
-    escape_rank_dist = acq_argsort[escape_idx]
-
-    max_consider = len(mut_freqs)
-    n_consider = np.array([ i + 1 for i in range(max_consider) ])
-
-    n_escape = np.array([ sum(escape_rank_dist <= i + 1)
-                          for i in range(max_consider) ])
-    norm = max(n_consider) * max(n_escape)
-    norm_auc = auc(n_consider, n_escape) / norm
-
-    escape_frac = len(seqs_escape) / len(mut_freqs)
-
-    plt.figure()
-    plt.plot(n_consider, n_escape)
-    plt.plot(n_consider, n_consider * escape_frac,
-             c='gray', linestyle='--')
-    plt.legend([
-        r'Mutation frequency, AUC = {:.3f}'.format(norm_auc),
-        'Random guessing, AUC = 0.500'
-    ])
-    plt.xlabel('Top N')
-    plt.ylabel('Number of escape mutations in top N')
-    plt.savefig('figures/{}_mutfreq_escape.png'.format(virus), dpi=300)
-    plt.close()
+    plot_result(mut_freqs, escape_idx, virus, 'mutfreq',
+                legend_name='Mutation frequency')
 
 def tape_embed(sequence, model, tokenizer):
     import torch
@@ -236,32 +295,9 @@ def escape_tape(virus, pretrained='transformer'):
     changes = np.array(changes)
     assert(len(escape_idx) == len(seqs_escape) - 1)
 
-    acq_argsort = ss.rankdata(-changes)
-    escape_rank_dist = acq_argsort[escape_idx]
+    plot_result(changes, escape_idx, virus, fname_prefix,
+                legend_name='TAPE ({})'.format(fname_prefix))
 
-    max_consider = len(changes)
-    n_consider = np.array([ i + 1 for i in range(max_consider) ])
-
-    n_escape = np.array([ sum(escape_rank_dist <= i + 1)
-                          for i in range(max_consider) ])
-    norm = max(n_consider) * max(n_escape)
-    norm_auc = auc(n_consider, n_escape) / norm
-
-    escape_frac = len(seqs_escape) / len(changes)
-
-    plt.figure()
-    plt.plot(n_consider, n_escape)
-    plt.plot(n_consider, n_consider * escape_frac,
-             c='gray', linestyle='--')
-    plt.legend([
-        r'TAPE transformer, AUC = {:.3f}'.format(norm_auc),
-        'Random guessing, AUC = 0.500'
-    ])
-    plt.xlabel('Top N')
-    plt.ylabel('Number of escape mutations in top N')
-    plt.savefig('figures/{}_{}_escape.png'
-                .format(virus, fname_prefix), dpi=300)
-    plt.close()
 
 def escape_bepler(virus):
     if virus == 'h1':
@@ -324,31 +360,8 @@ def escape_bepler(virus):
     changes = np.array(changes)
     assert(len(escape_idx) == len(seqs_escape) - 1)
 
-    acq_argsort = ss.rankdata(-changes)
-    escape_rank_dist = acq_argsort[escape_idx]
-
-    max_consider = len(changes)
-    n_consider = np.array([ i + 1 for i in range(max_consider) ])
-
-    n_escape = np.array([ sum(escape_rank_dist <= i + 1)
-                          for i in range(max_consider) ])
-    norm = max(n_consider) * max(n_escape)
-    norm_auc = auc(n_consider, n_escape) / norm
-
-    escape_frac = len(seqs_escape) / len(changes)
-
-    plt.figure()
-    plt.plot(n_consider, n_escape)
-    plt.plot(n_consider, n_consider * escape_frac,
-             c='gray', linestyle='--')
-    plt.legend([
-        r'Bepler, AUC = {:.3f}'.format(norm_auc),
-        'Random guessing, AUC = 0.500'
-    ])
-    plt.xlabel('Top N')
-    plt.ylabel('Number of escape mutations in top N')
-    plt.savefig('figures/{}_bepler_escape.png'.format(virus), dpi=300)
-    plt.close()
+    plot_result(changes, escape_idx, virus, fname_prefix,
+                legend_name='Bepler')
 
 if __name__ == '__main__':
     args = parse_args()
@@ -359,8 +372,8 @@ if __name__ == '__main__':
     elif args.method == 'energy':
         escape_energy(args.virus)
 
-    elif args.method == 'ecouple':
-        pass
+    elif args.method == 'evcouplings':
+        escape_evcouplings(args.virus)
 
     elif args.method == 'freq':
         escape_freq(args.virus)

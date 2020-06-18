@@ -131,6 +131,38 @@ def interpret_clusters(adata):
                 tprint('\t\t{}: {}'.format(val, count))
         tprint('')
 
+    from sklearn.metrics import adjusted_mutual_info_score as AMI
+    tprint('AMI, Louvain and subtype: {}'
+           .format(AMI(adata.obs['louvain'],
+                       adata.obs['Subtype'])))
+    tprint('AMI, Louvain and host species: {}'
+           .format(AMI(adata.obs['louvain'],
+                       adata.obs['Host Species'])))
+
+    cluster2subtype = {}
+    cluster2species = {}
+    for i in range(len(adata)):
+        cluster = adata.obs['louvain'][i]
+        if cluster not in cluster2subtype:
+            cluster2subtype[cluster] = []
+            cluster2species[cluster] = []
+        cluster2subtype[cluster].append(adata.obs['Subtype'][i])
+        cluster2species[cluster].append(adata.obs['Host Species'][i])
+    largest_pct_subtype = []
+    largest_pct_species = []
+    for cluster in cluster2subtype:
+        count = Counter(cluster2subtype[cluster]).most_common(1)[0][1]
+        largest_pct_subtype.append(float(count) /
+                                   len(cluster2subtype[cluster]))
+        count = Counter(cluster2species[cluster]).most_common(1)[0][1]
+        largest_pct_species.append(float(count) /
+                                   len(cluster2species[cluster]))
+    tprint('Purity, Louvain and subtype: {}'
+           .format(np.mean(largest_pct_subtype)))
+    tprint('Purity, Louvain and host species: {}'
+           .format(np.mean(largest_pct_species)))
+
+
 def seq_clusters(adata):
     clusters = sorted(set(adata.obs['louvain']))
     for cluster in clusters:
@@ -235,21 +267,7 @@ def analyze_embedding(args, model, seqs, vocabulary):
     sc.set_figure_params(dpi_save=500)
     plot_umap(adata)
 
-    adata_human = adata[adata.obs['Host Species'] == 'human']
-    plot_composition(adata_human, 'louvain')
-    plot_composition(adata_human, 'Subtype')
-    plot_umap_time(adata_human)
-
     interpret_clusters(adata)
-
-    from sklearn.metrics import adjusted_mutual_info_score as AMI
-    tprint('AMI, Louvain and subtype: {}'
-           .format(AMI(adata.obs['louvain'],
-                       adata.obs['Subtype'])))
-    tprint('AMI, Louvain and host species: {}'
-           .format(AMI(adata.obs['louvain'],
-                       adata.obs['Host Species'])))
-    #seq_clusters(adata)
 
 def analyze_comb_fitness(
         args, model, vocabulary,
@@ -375,13 +393,15 @@ if __name__ == '__main__':
         tprint('Lee et al. 2018...')
         seq_to_mutate, escape_seqs = load_lee2018()
         analyze_semantics(args, model, vocabulary, seq_to_mutate, escape_seqs,
-                          prob_cutoff=0., beta=1., plot_acquisition=True,)
+                          prob_cutoff=0., beta=1., plot_acquisition=True,
+                          plot_namespace='flu_h1')
         tprint('')
 
         tprint('Lee et al. 2019...')
         seq_to_mutate, escape_seqs = load_lee2019()
         analyze_semantics(args, model, vocabulary, seq_to_mutate, escape_seqs,
-                          prob_cutoff=0., beta=1., plot_acquisition=True,)
+                          prob_cutoff=0., beta=1., plot_acquisition=True,
+                          plot_namespace='flu_h3')
 
     if args.combfit:
         from combinatorial_fitness import load_wu2020

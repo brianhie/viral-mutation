@@ -178,7 +178,7 @@ def embed_seqs(args, model, seqs, vocabulary,
         embed_fname = None
 
     if use_cache and os.path.exists(embed_fname):
-        X_embed = np.load(embed_fname)
+        X_embed = np.load(embed_fname, allow_pickle=True)
     else:
         X_embed = model.transform(X_cat, lengths, embed_fname)
         if use_cache:
@@ -203,10 +203,12 @@ def predict_sequence_prob(args, seq_of_interest, vocabulary, model,
 
 def analyze_semantics(args, model, vocabulary, seq_to_mutate, escape_seqs,
                       prob_cutoff=0., beta=1., plot_acquisition=True,
-                      verbose=True,):
+                      plot_namespace=None, verbose=True):
     if plot_acquisition:
         dirname = ('target/{}/semantics/cache'.format(args.namespace))
         mkdir_p(dirname)
+        if plot_namespace is None:
+            plot_namespace = args.namespace
 
     y_pred = predict_sequence_prob(
         args, seq_to_mutate, vocabulary, model, verbose=verbose
@@ -276,6 +278,6 @@ def analyze_semantics(args, model, vocabulary, seq_to_mutate, escape_seqs,
         from cached_semantics import cached_escape_semantics
         cached_escape_semantics(cache_fname, beta,
                                 plot=plot_acquisition,
-                                namespace=args.namespace)
+                                namespace=plot_namespace)
 
     return seqs, prob, change, escape_idx, viable_idx
