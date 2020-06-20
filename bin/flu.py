@@ -269,68 +269,6 @@ def analyze_embedding(args, model, seqs, vocabulary):
 
     interpret_clusters(adata)
 
-def analyze_comb_fitness(
-        args, model, vocabulary,
-        strain, wt_seq, seqs_fitness,
-        prob_cutoff=0., beta=1., verbose=True,
-):
-    y_pred = predict_sequence_prob(
-        args, wt_seq, vocabulary, model, verbose=verbose
-    )
-
-    word_pos_prob = {}
-    for pos in range(len(wt_seq)):
-        for word in vocabulary:
-            word_idx = vocabulary[word]
-            prob = y_pred[pos + 1, word_idx]
-            if prob < prob_cutoff:
-                continue
-            word_pos_prob[(word, pos)] = prob
-
-    data = []
-    for mut_seq in seqs_fitness:
-        assert(len(mut_seq) == len(wt_seq))
-        assert(len(seqs_fitness[mut_seq]) == 1)
-        meta = seqs_fitness[mut_seq][0]
-        if meta['strain'] != strain:
-            continue
-
-        mut_pos = set(meta['mut_pos'])
-        raw_probs = []
-        for idx, aa in enumerate(mut_seq):
-            if idx in mut_pos:
-                raw_probs.append(word_pos_prob[(aa, idx)])
-            else:
-                assert(aa == wt_seq[idx])
-        assert(len(raw_probs) == len(mut_pos))
-
-        data.append([
-            meta['strain'],
-            meta['fitness'],
-            meta['preference'],
-            np.sum(np.log10(raw_probs))
-        ])
-
-    df = pd.DataFrame(data, columns=[
-        'strain', 'fitness', 'preference', 'predicted'
-    ])
-
-    print('\nStrain: {}'.format(strain))
-    print('Spearman r = {:.4f}, P = {:.4g}'
-          .format(*ss.spearmanr(df.preference, df.predicted)))
-    print('Pearson rho = {:.4f}, P = {:.4g}'
-          .format(*ss.pearsonr(df.preference, df.predicted)))
-
-    plt.figure()
-    plt.scatter(df.preference, df.predicted, alpha=0.3)
-    plt.ylim([ -27., 1. ])
-    plt.title(strain)
-    plt.xlabel('Preference')
-    plt.ylabel('Predicted')
-    plt.savefig('figures/combinatorial_fitness_{}.png'.format(strain),
-                dpi=300)
-    plt.close()
-
 def evolve(args, model, vocabulary, start_seq,
            n_timesteps=100, prob_cutoff=1e-3,
            beta=0.1, gamma_shape=1., gamma_scale=5.,

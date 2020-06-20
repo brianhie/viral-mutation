@@ -33,10 +33,12 @@ def parse_args():
                         help='Analyze embeddings')
     parser.add_argument('--semantics', action='store_true',
                         help='Analyze mutational semantic change')
+    parser.add_argument('--combfit', action='store_true',
+                        help='Analyze combinatorial fitness')
     args = parser.parse_args()
     return args
 
-def parse_meta(entry):
+def parse_nih(entry):
     fields = entry.split('|')
 
     country = fields[3]
@@ -55,6 +57,33 @@ def parse_meta(entry):
     }
     return meta
 
+def parse_gisaid(entry):
+    fields = entry.split('|')
+
+    type_id = fields[1].split('/')[1]
+
+    if type_id in { 'bat', 'canine', 'cat', 'env', 'mink',
+                    'pangolin', 'tiger' }:
+        host = type_id
+        country = 'NA'
+        continent = 'NA'
+    else:
+        host = 'human'
+        from locations import country2continent
+        if type_id in country2continent:
+            country = type_id
+            continent = country2continent[country]
+        else:
+            country = 'NA'
+            continent = 'NA'
+
+    meta = {
+        'host': host,
+        'country': country,
+        'continent': continent,
+    }
+    return meta
+
 def process(fnames):
     seqs = {}
     for fname in fnames:
@@ -64,12 +93,16 @@ def process(fnames):
             if len(record.seq) < 1250 or \
                len(record.seq) > 1300:
                 continue
+            if str(record.seq).count('X') > 10:
+                continue
             if record.seq not in seqs:
                 seqs[record.seq] = []
             if fname == 'data/cov/viprbrc_db.fasta':
                 meta = parse_viprbrc(record.description)
+            elif fname == 'data/cov/gisaid.fasta':
+                meta = parse_gisaid(record.description)
             else:
-                meta = parse_meta(record.description)
+                meta = parse_nih(record.description)
             seqs[record.seq].append(meta)
     return seqs
 
@@ -92,7 +125,8 @@ def split_seqs(seqs, split_method='random'):
 
 def setup(args):
     fnames = [ 'data/cov/sars_cov2_seqs.fa',
-               'data/cov/viprbrc_db.fasta' ]
+               'data/cov/viprbrc_db.fasta',
+               'data/cov/gisaid.fasta' ]
 
     with warnings.catch_warnings():
         warnings.simplefilter('ignore', BiopythonWarning)
@@ -101,7 +135,8 @@ def setup(args):
     seq_len = max([ len(seq) for seq in seqs ]) + 2
     vocab_size = len(AAs) + 2
 
-    model = get_model(args, seq_len, vocab_size)
+    model = get_model(args, seq_len, vocab_size,
+                      inference_batch_size=1500)
 
     return model, seqs
 
@@ -128,6 +163,8 @@ def seq_clusters(adata):
                 of.write(seq + '\n\n')
 
 def plot_umap(adata, namespace='sarscov2'):
+    sc.pl.umap(adata, color='continent',
+               save='_{}_continent.png'.format(namespace))
     sc.pl.umap(adata, color='louvain',
                save='_{}_louvain.png'.format(namespace))
     sc.pl.umap(adata, color='n_seq',
@@ -212,3 +249,13 @@ if __name__ == '__main__':
         seq_to_mutate, escape_seqs = load_korber2020()
         analyze_semantics(args, model, vocabulary, seq_to_mutate, escape_seqs,
                           prob_cutoff=1e-10, beta=1., plot_acquisition=True,)
+
+    if args.combfit:
+        from combinatorial_fitness import load_starr2020
+        tprint('Starr et al. 2020...')
+        wt_seqs, seqs_fitness = load_starr2020()
+        strains = sorted(wt_seqs.keys())
+        for strain in strains:
+            analyze_comb_fitness(args, model, vocabulary,
+                                 strain, wt_seqs[strain], seqs_fitness,
+                                 comb_batch=10000, prob_cutoff=0., beta=1.)

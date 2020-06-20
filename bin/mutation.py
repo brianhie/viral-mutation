@@ -133,7 +133,8 @@ def train_test(args, model, seqs, vocabulary, split_seqs=None):
         report_performance(args.model_name, model, vocabulary,
                            train_seqs, val_seqs)
 
-def batch_train(args, model, seqs, vocabulary, batch_size=5000):
+def batch_train(args, model, seqs, vocabulary, batch_size=5000,
+                verbose=True):
     assert(args.train)
 
     # Control epochs here.
@@ -142,9 +143,13 @@ def batch_train(args, model, seqs, vocabulary, batch_size=5000):
     model.n_epochs_ = 1
 
     n_batches = math.ceil(len(seqs) / float(batch_size))
+    if verbose:
+        tprint('Traing seq batch size: {}, N batches: {}'
+               .format(batch_size, n_batches))
 
     for epoch in range(n_epochs):
-        tprint('True epoch {}/{}'.format(epoch + 1, n_epochs))
+        if verbose:
+            tprint('True epoch {}/{}'.format(epoch + 1, n_epochs))
         perm_seqs = [ str(s) for s in seqs.keys() ]
         random.shuffle(perm_seqs)
 
@@ -200,6 +205,115 @@ def predict_sequence_prob(args, seq_of_interest, vocabulary, model,
     assert(y_pred.shape[0] == len(seq_of_interest) + 2)
 
     return y_pred
+
+def analyze_comb_fitness(
+        args, model, vocabulary, strain, wt_seq, seqs_fitness,
+        comb_batch=None, prob_cutoff=0., beta=1., verbose=True,
+):
+    from copy import deepcopy
+
+    y_pred = predict_sequence_prob(
+        args, wt_seq, vocabulary, model, verbose=verbose
+    )
+
+    word_pos_prob = {}
+    for pos in range(len(wt_seq)):
+        for word in vocabulary:
+            word_idx = vocabulary[word]
+            prob = y_pred[pos + 1, word_idx]
+            if prob < prob_cutoff:
+                continue
+            word_pos_prob[(word, pos)] = prob
+
+    base_embedding = embed_seqs(
+        args, model, { wt_seq: [ {} ] }, vocabulary,
+        use_cache=False, verbose=False
+    )[wt_seq][0]['embedding']
+
+    if comb_batch is None:
+        comb_batch = len(seqs_fitness)
+    seqs = sorted(seqs_fitness.keys())
+    n_batches = math.ceil(float(len(seqs)) / comb_batch)
+
+    for batchi in range(n_batches):
+        start = batchi * comb_batch
+        end = (batchi + 1) * comb_batch
+        seqs_fitness_batch = {
+            seq: deepcopy(seqs_fitness[seq])
+            for seq in seqs[start:end]
+        }
+
+        seqs_fitness_batch = embed_seqs(
+            args, model, seqs_fitness_batch, vocabulary,
+            use_cache=False, verbose=False
+        )
+
+        data = []
+        for mut_seq in seqs_fitness_batch:
+            assert(len(mut_seq) == len(wt_seq))
+            assert(len(seqs_fitness_batch[mut_seq]) == 1)
+            meta = seqs_fitness_batch[mut_seq][0]
+            if meta['strain'] != strain:
+                continue
+
+            mut_pos = set(meta['mut_pos'])
+            raw_probs = []
+            for idx, aa in enumerate(mut_seq):
+                if idx in mut_pos:
+                    raw_probs.append(word_pos_prob[(aa, idx)])
+                else:
+                    assert(aa == wt_seq[idx])
+            assert(len(raw_probs) == len(mut_pos))
+
+            grammar = np.sum(np.log10(raw_probs))
+            sem_change = abs(base_embedding - meta['embedding']).sum()
+
+            data.append([
+                meta['strain'],
+                meta['fitness'],
+                meta['preference'],
+                grammar,
+                sem_change,
+                sem_change + (beta * grammar),
+            ])
+
+        del seqs_fitness_batch
+
+    df = pd.DataFrame(data, columns=[
+        'strain', 'fitness', 'preference',
+        'predicted', 'sem_change', 'cscs'
+    ])
+
+    print('\nStrain: {}'.format(strain))
+    print('\tGrammaticality correlation:')
+    print('\t\tSpearman r = {:.4f}, P = {:.4g}'
+          .format(*ss.spearmanr(df.preference, df.predicted)))
+    print('\t\tPearson rho = {:.4f}, P = {:.4g}'
+          .format(*ss.pearsonr(df.preference, df.predicted)))
+
+    print('\tSemantic change correlation:')
+    print('\t\tSpearman r = {:.4f}, P = {:.4g}'
+          .format(*ss.spearmanr(df.preference, df.sem_change)))
+    print('\t\tPearson rho = {:.4f}, P = {:.4g}'
+          .format(*ss.pearsonr(df.preference, df.sem_change)))
+
+    plt.figure()
+    plt.scatter(df.preference, df.predicted, alpha=0.3)
+    plt.title(strain)
+    plt.xlabel('Preference')
+    plt.ylabel('Grammaticality')
+    plt.savefig('figures/combinatorial_fitness_grammar_{}_{}.png'
+                .format(args.namespace, strain), dpi=300)
+    plt.close()
+
+    plt.figure()
+    plt.scatter(df.preference, df.sem_change, alpha=0.3)
+    plt.title(strain)
+    plt.xlabel('Preference')
+    plt.ylabel('Semantic change')
+    plt.savefig('figures/combinatorial_fitness_semantics_{}_{}.png'
+                .format(args.namespace, strain), dpi=300)
+    plt.close()
 
 def analyze_semantics(args, model, vocabulary, seq_to_mutate, escape_seqs,
                       prob_cutoff=0., beta=1., plot_acquisition=True,
