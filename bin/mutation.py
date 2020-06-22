@@ -211,6 +211,9 @@ def analyze_comb_fitness(
         comb_batch=None, prob_cutoff=0., beta=1., verbose=True,
 ):
     from copy import deepcopy
+    seqs_fitness = { seq: seqs_fitness[(seq, strain_i)]
+                     for seq, strain_i in seqs_fitness
+                     if strain_i == strain }
 
     y_pred = predict_sequence_prob(
         args, wt_seq, vocabulary, model, verbose=verbose
@@ -241,6 +244,7 @@ def analyze_comb_fitness(
         seqs_fitness_batch = {
             seq: deepcopy(seqs_fitness[seq])
             for seq in seqs[start:end]
+            if seqs_fitness[seq][0]['strain'] == strain
         }
 
         seqs_fitness_batch = embed_seqs(
@@ -250,11 +254,11 @@ def analyze_comb_fitness(
 
         data = []
         for mut_seq in seqs_fitness_batch:
-            assert(len(mut_seq) == len(wt_seq))
             assert(len(seqs_fitness_batch[mut_seq]) == 1)
             meta = seqs_fitness_batch[mut_seq][0]
             if meta['strain'] != strain:
                 continue
+            assert(len(mut_seq) == len(wt_seq))
 
             mut_pos = set(meta['mut_pos'])
             raw_probs = []

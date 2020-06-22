@@ -33,6 +33,8 @@ def parse_args():
                         help='Analyze embeddings')
     parser.add_argument('--semantics', action='store_true',
                         help='Analyze mutational semantic change')
+    parser.add_argument('--combfit', action='store_true',
+                        help='Analyze combinatorial fitness')
     args = parser.parse_args()
     return args
 
@@ -252,3 +254,13 @@ if __name__ == '__main__':
             args, model, vocabulary, seq_to_mutate, escape_seqs,
             prob_cutoff=0., beta=1., plot_acquisition=True,
         )
+
+    if args.combfit:
+        from combinatorial_fitness import load_haddox2018
+        tprint('Haddox et al. 2020...')
+        wt_seqs, seqs_fitness = load_haddox2018()
+        strains = sorted(wt_seqs.keys())
+        for strain in strains:
+            analyze_comb_fitness(args, model, vocabulary,
+                                 strain, wt_seqs[strain], seqs_fitness,
+                                 prob_cutoff=0., beta=1.)

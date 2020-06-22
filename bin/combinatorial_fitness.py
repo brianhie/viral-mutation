@@ -1,5 +1,65 @@
 from Bio import SeqIO
+from Bio.Seq import translate
 import numpy as np
+from utils import Counter
+
+def load_haddox2018():
+    strain_names = [ 'BF520', 'BG505' ]
+
+    strains = {}
+    seqs_fitness = {}
+    for strain in strain_names:
+        wt_seq = translate(SeqIO.read(
+            'data/hiv/fitness_haddox2018/'
+            '{}_env.fasta'.format(strain), 'fasta'
+        ).seq)[:-1]
+        strains[strain] = wt_seq
+
+        fname = 'data/hiv/fitness_haddox2018/{}_to_HXB2.csv'.format(strain)
+        pos_map = {}
+        with open(fname) as f:
+            f.readline() # Consume header.
+            for line in f:
+                fields = line.rstrip().split(',')
+                pos_map[fields[1]] = (fields[2], int(fields[0]) - 1)
+
+        fname = ('data/hiv/fitness_haddox2018/{}_avgprefs.csv'
+                 .format(strain))
+        with open(fname) as f:
+            mutants = f.readline().rstrip().split(',')[1:]
+            for line in f:
+                fields = line.rstrip().split(',')
+                orig, pos = pos_map[fields[0]]
+                assert(wt_seq[int(pos)] == orig)
+                preferences = [ float(field) for field in fields[1:] ]
+                assert(len(mutants) == len(preferences))
+                for mut, pref in zip(mutants, preferences):
+                    mutable = [ aa for aa in wt_seq ]
+                    mutable[pos] = mut
+                    mut_seq = ''.join(mutable)
+                    if (mut_seq, strain) not in seqs_fitness:
+                        seqs_fitness[(mut_seq, strain)] = [ {
+                            'strain': strain,
+                            'fitnesses': [ pref ],
+                            'preferences': [ pref ],
+                            'wildtype': wt_seq,
+                            'mut_pos': [ pos ],
+                        } ]
+                    else:
+                        seqs_fitness[(mut_seq, strain)][0][
+                            'fitnesses'].append(pref)
+                        seqs_fitness[(mut_seq, strain)][0][
+                            'preferences'].append(pref)
+
+    for fit_key in seqs_fitness:
+        seqs_fitness[fit_key][0]['fitness'] = np.median(
+            seqs_fitness[fit_key][0]['fitnesses']
+        )
+        seqs_fitness[fit_key][0]['preference'] = np.median(
+            seqs_fitness[fit_key][0]['preferences']
+        )
+
+    return strains, seqs_fitness
 
 def load_wu2020():
     mut_pos = [
@@ -52,9 +112,9 @@ def load_wu2020():
                 mutable[pos] = aa
             mut_seq = ''.join(mutable)
 
-            if mut_seq not in seqs_fitness:
-                seqs_fitness[mut_seq] = []
-            seqs_fitness[mut_seq].append({
+            if (mut_seq, strain) not in seqs_fitness:
+                seqs_fitness[(mut_seq, strain)] = []
+            seqs_fitness[(mut_seq, strain)].append({
                 'strain': strain,
                 'fitness': fitness,
                 'preference': preference,
@@ -87,8 +147,8 @@ def load_starr2020():
                 mut_pos.append(pos)
             mut_seq = ''.join(mutable)
 
-            if mut_seq not in seqs_fitness:
-                seqs_fitness[mut_seq] = [ {
+            if (mut_seq, strain) not in seqs_fitness:
+                seqs_fitness[(mut_seq, strain)] = [ {
                     'strain': strain,
                     'fitnesses': [ log10Ka ],
                     'preferences': [ log10Ka ],
@@ -96,20 +156,22 @@ def load_starr2020():
                     'mut_pos': mut_pos,
                 } ]
             else:
-                seqs_fitness[mut_seq][0]['fitnesses'].append(log10Ka)
-                seqs_fitness[mut_seq][0]['preferences'].append(log10Ka)
+                seqs_fitness[(mut_seq, strain)][0][
+                    'fitnesses'].append(log10Ka)
+                seqs_fitness[(mut_seq, strain)][0][
+                    'preferences'].append(log10Ka)
 
-    for mut_seq in seqs_fitness:
-        seqs_fitness[mut_seq][0]['fitness'] = np.median(
-            seqs_fitness[mut_seq][0]['fitnesses']
+    for fit_key in seqs_fitness:
+        seqs_fitness[fit_key][0]['fitness'] = np.median(
+            seqs_fitness[fit_key][0]['fitnesses']
         )
-        seqs_fitness[mut_seq][0]['preference'] = np.median(
-            seqs_fitness[mut_seq][0]['preferences']
+        seqs_fitness[fit_key][0]['preference'] = np.median(
+            seqs_fitness[fit_key][0]['preferences']
         )
 
     return { strain: wt_seq }, seqs_fitness
 
 if __name__ == '__main__':
+    load_haddox2018()
     load_starr2020()
-    exit()
     load_wu2020()
