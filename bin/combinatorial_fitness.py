@@ -3,6 +3,54 @@ from Bio.Seq import translate
 import numpy as np
 from utils import Counter
 
+def load_doud2016():
+    strain = 'h1'
+
+    fname = 'data/influenza/escape_lee2018/WSN1933_H1_HA.fa'
+    wt_seq = SeqIO.read(fname, 'fasta').seq
+
+    seqs_fitness = {}
+    fname = ('data/influenza/fitness_doud2016/'
+             'Supplemental_File_2_HApreferences.txt')
+    with open(fname) as f:
+        muts = f.readline().rstrip().split()[4:]
+        for line in f:
+            fields = line.rstrip().split()
+            pos = int(fields[0]) - 1
+            orig = fields[1]
+            assert(wt_seq[pos] == orig)
+            data = [ float(field) for field in fields[3:] ]
+            assert(len(muts) == len(data))
+            for mut, pref in zip(muts, data):
+                mutable = [ aa for aa in wt_seq ]
+                assert(mut.startswith('PI_'))
+                mutable[pos] = mut[-1]
+                mut_seq = ''.join(mutable)
+                assert(len(mut_seq) == len(wt_seq))
+                if (mut_seq, strain) not in seqs_fitness:
+                    seqs_fitness[(mut_seq, strain)] = [ {
+                        'strain': strain,
+                        'fitnesses': [ pref ],
+                        'preferences': [ pref ],
+                        'wildtype': wt_seq,
+                        'mut_pos': [ pos ],
+                    } ]
+                else:
+                    seqs_fitness[(mut_seq, strain)][0][
+                        'fitnesses'].append(pref)
+                    seqs_fitness[(mut_seq, strain)][0][
+                        'preferences'].append(pref)
+
+    for fit_key in seqs_fitness:
+        seqs_fitness[fit_key][0]['fitness'] = np.median(
+            seqs_fitness[fit_key][0]['fitnesses']
+        )
+        seqs_fitness[fit_key][0]['preference'] = np.median(
+            seqs_fitness[fit_key][0]['preferences']
+        )
+
+    return { strain: wt_seq }, seqs_fitness
+
 def load_haddox2018():
     strain_names = [ 'BF520', 'BG505' ]
 
@@ -172,6 +220,8 @@ def load_starr2020():
     return { strain: wt_seq }, seqs_fitness
 
 if __name__ == '__main__':
+    load_doud2016()
+    exit()
     load_haddox2018()
     load_starr2020()
     load_wu2020()

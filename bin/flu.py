@@ -342,6 +342,15 @@ if __name__ == '__main__':
                           plot_namespace='flu_h3')
 
     if args.combfit:
+        from combinatorial_fitness import load_doud2016
+        tprint('Doud et al. 2016...')
+        wt_seqs, seqs_fitness = load_doud2016()
+        strains = sorted(wt_seqs.keys())
+        for strain in strains:
+            analyze_comb_fitness(args, model, vocabulary,
+                                 strain, wt_seqs[strain], seqs_fitness,
+                                 prob_cutoff=0., beta=1.)
+
         from combinatorial_fitness import load_wu2020
         tprint('Wu et al. 2020...')
         wt_seqs, seqs_fitness = load_wu2020()
