@@ -221,7 +221,6 @@ def load_starr2020():
 
 if __name__ == '__main__':
     load_doud2016()
-    exit()
     load_haddox2018()
     load_starr2020()
     load_wu2020()

@@ -27,7 +27,7 @@ def msa_subset(ifname, ofname, anchor_id, cutoff=0):
 
     return str(anchor.seq)
 
-def create_mutants(virus, aligned_str):
+def create_mutants(aligned_str):
     AAs = [
         'A', 'R', 'N', 'D', 'C', 'Q', 'E', 'G', 'H',
         'I', 'L', 'K', 'M', 'F', 'P', 'S', 'T', 'W',
@@ -47,40 +47,50 @@ def create_mutants(virus, aligned_str):
             mutants.append(mutable)
     return mutants, mutant_names
 
-def write_mutants(virus, mutants, mutant_names, outfile):
+def write_mutants(mutants, mutant_names, outfile):
     with open(outfile, 'w') as of:
         for mutant, name in zip(mutants, mutant_names):
             of.write('>{}\n'.format(name))
             of.write('{}\n'.format(mutant))
 
 if __name__ == '__main__':
-    print('H1 escape...')
+    print('H1...')
     anchor = msa_subset(
         'target/flu/clusters/all.fasta',
         'target/flu/clusters/all_h1.fasta',
         'gb:LC333185|ncbiId:BBB04702.1|UniProtKB:-N/A-|'
         'Organism:Influenza', 2
     )
-    mutants, mutant_names = create_mutants('h1', anchor)
-    write_mutants('h1', mutants, mutant_names,
+    mutants, mutant_names = create_mutants(anchor)
+    write_mutants(mutants, mutant_names,
                   'target/flu/mutation/mutations_h1.fa')
 
-    print('H3 escape...')
+    print('H3...')
     anchor = msa_subset(
         'target/flu/clusters/all.fasta',
         'target/flu/clusters/all_h3.fasta',
         'Reference_Perth2009_HA_coding_sequence', 0
     )
-    mutants, mutant_names = create_mutants('h3', anchor)
-    write_mutants('h3', mutants, mutant_names,
+    mutants, mutant_names = create_mutants(anchor)
+    write_mutants(mutants, mutant_names,
                   'target/flu/mutation/mutations_h3.fa')
 
-    print('HIV escape...')
+    print('HIV BG505...')
     anchor = msa_subset(
         'target/hiv/clusters/all.fasta',
         'target/hiv/clusters/all_BG505.fasta',
         'A1.KE.-.BG505_W6M_ENV_C2.DQ208458', 15
     )
-    mutants, mutant_names = create_mutants('hiv', anchor)
-    write_mutants('hiv', mutants, mutant_names,
+    mutants, mutant_names = create_mutants(anchor)
+    write_mutants(mutants, mutant_names,
                   'target/hiv/mutation/mutations_hiv.fa')
+
+    print('HIV BF520...')
+    anchor = msa_subset(
+        'target/hiv/clusters/all.fasta',
+        'target/hiv/clusters/all_BF520.fasta',
+        'A1.KE.1994.BF520.W14M.C2.KX168094', 15
+    )
+    mutants, mutant_names = create_mutants(anchor)
+    write_mutants(mutants, mutant_names,
+                  'target/hiv/mutation/mutations_bf520.fa')

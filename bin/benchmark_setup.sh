@@ -19,6 +19,7 @@ cd MPF-BML/
 matlab -r "fasta_name = '../target/flu/clusters/all_h1.fasta'; mut_name = '../target/flu/mutation/mutations_h1.fa'; main_MPF_BML(fasta_name, mut_name)"
 matlab -r "fasta_name = '../target/flu/clusters/all_h3.fasta'; mut_name = '../target/flu/mutation/mutations_h3.fa'; main_MPF_BML(fasta_name, mut_name)"
 matlab -r "fasta_name = '../target/hiv/clusters/all_BG505.fasta'; mut_name = '../target/hiv/mutation/mutations_hiv.fa'; main_MPF_BML(fasta_name, mut_name)"
+matlab -r "fasta_name = '../target/hiv/clusters/all_BF520.fasta'; mut_name = '../target/hiv/mutation/mutations_bf520.fa'; main_MPF_BML(fasta_name, mut_name)"
 cd ..
 
 #########################
@@ -31,12 +32,15 @@ evcouplings_runcfg data/evcouplings/flu_h3_config.yaml > \
                    evcouplings_flu_h3.log 2>&1
 evcouplings_runcfg data/evcouplings/hiv_env_config.yaml > \
                    evcouplings_hiv_env.log 2>&1
+evcouplings_runcfg data/evcouplings/hiv_bf520_config.yaml > \
+                   evcouplings_hiv_bf520.log 2>&1
 
 mkdir -p target/flu/evcouplings
 mkdir -p target/hiv/evcouplings
 mv flu_h1 target/flu/evcouplings/
 mv flu_h3 target/flu/evcouplings/
 mv hiv_env target/hiv/evcouplings/
+mv hiv_bf520 target/hiv/evcouplings/
 
 ######################
 ## TAPE Transformer ##
@@ -87,9 +91,24 @@ tape-embed unirep \
            --tokenizer unirep \
            --batch_size 128
 
-########################
-## Final calculations ##
-########################
+##########################
+## Fitness calculations ##
+##########################
+
+declare -a methods=("energy" "evcouplings" "freq")
+declare -a viruses=("h1" "bf520" "bf520")
+
+for method in ${methods[@]}
+do
+    for virus in ${viruses[@]}
+    do
+        python bin/fitness_energy.py method virus
+    done
+done
+
+#########################
+## Escape calculations ##
+#########################
 
 declare -a methods=("bepler" "energy" "evcouplings" "freq" "tape" "unirep")
 declare -a viruses=("h1" "h3" "hiv")
