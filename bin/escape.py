@@ -1,4 +1,4 @@
-from Bio import SeqIO
+from Bio import Seq, SeqIO
 
 def load_lee2018(survival_cutoff=0.05):
     pos_map = {}
@@ -79,6 +79,34 @@ def load_lee2019():
 
     return seq, seqs_escape
 
+def load_dingens2017(survival_cutoff=0.5):
+    fname = 'data/hiv/escape_dingens2017/BF520c2-Env.fasta'
+    record = SeqIO.read(fname, 'fasta')
+    seq = Seq.translate(str(record.seq)).rstrip('*')
+
+    seqs_escape = {}
+    fname = 'data/hiv/escape_dingens2017/PGT151_1ug_average_mutdiffsel.txt'
+    with open(fname) as f:
+        f.readline() # Consume header.
+        for line in f:
+            fields = line.rstrip().split(',')
+            pos = int(fields[0]) - 1
+            orig, mut = fields[1], fields[2]
+            assert(seq[pos] == orig)
+            escaped = seq[:pos] + mut + seq[pos + 1:]
+            assert(len(seq) == len(escaped))
+            diff_sel = float(fields[3])
+            if escaped not in seqs_escape:
+                seqs_escape[escaped] = []
+            seqs_escape[escaped].append({
+                'pos': pos,
+                'frac_survived': diff_sel,
+                'antibody': 'PGT151',
+                'significant': diff_sel > survival_cutoff,
+            })
+
+    return seq, seqs_escape
+
 def load_dingens2019(survival_cutoff=0.05):
     pos_map = {}
     with open('data/hiv/escape_dingens2019/BG505_to_HXB2.csv') as f:
@@ -113,6 +141,7 @@ def load_dingens2019(survival_cutoff=0.05):
                 if escaped not in seqs_escape:
                     seqs_escape[escaped] = []
                 seqs_escape[escaped].append({
+                    'pos': pos,
                     'frac_survived': frac_survived,
                     'antibody': antibody,
                     'significant': frac_survived > survival_cutoff,
@@ -153,8 +182,9 @@ def load_korber2020():
 
 
 if __name__ == '__main__':
-    load_korber2020()
+    load_dingens2017()
     exit()
+    load_dingens2019()
+    load_korber2020()
     load_lee2018()
     load_lee2019()
-    load_dingens2019()

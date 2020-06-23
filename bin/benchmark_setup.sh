@@ -102,7 +102,7 @@ for method in ${methods[@]}
 do
     for virus in ${viruses[@]}
     do
-        python bin/fitness_energy.py method virus
+        python bin/fitness_energy.py $method $virus
     done
 done
 
@@ -117,6 +117,6 @@ for method in ${methods[@]}
 do
     for virus in ${viruses[@]}
     do
-        python bin/escape_energy.py method virus
+        python bin/escape_energy.py $method $virus
     done
 done

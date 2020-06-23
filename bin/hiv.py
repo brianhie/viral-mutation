@@ -246,12 +246,30 @@ if __name__ == '__main__':
             raise ValueError('Model must be trained or loaded '
                              'from checkpoint.')
 
+        from escape import load_dingens2017
+        tprint('Dingens et al. 2017...')
+        seq_to_mutate, escape_seqs = load_dingens2017()
+        min_pos = min([ escape_seqs[seq][0]['pos']
+                        for seq in escape_seqs ])
+        max_pos = max([ escape_seqs[seq][0]['pos']
+                        for seq in escape_seqs ])
+        analyze_semantics(
+            args, model, vocabulary, seq_to_mutate, escape_seqs,
+            min_pos=min_pos, max_pos=max_pos,
+            prob_cutoff=0., beta=1., plot_acquisition=True,
+        )
+        exit()
+
         from escape import load_dingens2019
         tprint('Dingens et al. 2019...')
         seq_to_mutate, escape_seqs = load_dingens2019()
-
+        min_pos = min([ escape_seqs[seq][0]['pos']
+                        for seq in escape_seqs ])
+        max_pos = max([ escape_seqs[seq][0]['pos']
+                        for seq in escape_seqs ])
         analyze_semantics(
             args, model, vocabulary, seq_to_mutate, escape_seqs,
+            min_pos=min_pos, max_pos=max_pos,
             prob_cutoff=0., beta=1., plot_acquisition=True,
         )
 

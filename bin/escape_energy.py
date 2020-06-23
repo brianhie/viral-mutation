@@ -13,6 +13,32 @@ def parse_args():
     args = parser.parse_args()
     return args
 
+def load(virus):
+    if virus == 'h1':
+        from escape import load_lee2018
+        seq, seqs_escape = load_lee2018()
+        train_fname = 'target/flu/clusters/all_h1.fasta'
+        mut_fname = 'target/flu/mutation/mutations_h1.fa'
+        anchor_id = ('gb:LC333185|ncbiId:BBB04702.1|UniProtKB:-N/A-|'
+                     'Organism:Influenza')
+    elif virus == 'h3':
+        from escape import load_lee2019
+        seq, seqs_escape = load_lee2019()
+        train_fname = 'target/flu/clusters/all_h3.fasta'
+        mut_fname = 'target/flu/mutation/mutations_h3.fa'
+        anchor_id = 'Reference_Perth2009_HA_coding_sequence'
+    elif virus == 'hiv':
+        from escape import load_dingens2019
+        seq, seqs_escape = load_dingens2019()
+        train_fname = 'target/hiv/clusters/all_BG505.fasta'
+        mut_fname = 'target/hiv/mutation/mutations_hiv.fa'
+        anchor_id = 'A1.KE.-.BG505_W6M_ENV_C2.DQ208458'
+    else:
+        raise ValueError('invalid option {}'.format(virus))
+
+    return seq, seqs_escape, train_fname, mut_fname, anchor_id
+
+
 def plot_result(rank_vals, escape_idx, virus, fname_prefix,
                 legend_name='Result'):
     acq_argsort = ss.rankdata(-rank_vals)
@@ -41,70 +67,58 @@ def plot_result(rank_vals, escape_idx, virus, fname_prefix,
                 .format(virus, fname_prefix), dpi=300)
     plt.close()
 
-def escape_energy(virus):
+def escape_energy(virus, vocabulary):
+    seq, seqs_escape, train_fname, mut_fname, anchor_id = load(virus)
     if virus == 'h1':
-        from escape import load_lee2018
-        seq, seqs_escape = load_lee2018()
-        train_fname = 'target/flu/clusters/all_h1.fasta'
-        mut_fname = 'target/flu/mutation/mutations_h1.fa'
         energy_fname = 'target/flu/clusters/all_h1.fasta.E.txt'
     elif virus == 'h3':
-        from escape import load_lee2019
-        seq, seqs_escape = load_lee2019()
-        train_fname = 'target/flu/clusters/all_h3.fasta'
-        mut_fname = 'target/flu/mutation/mutations_h3.fa'
         energy_fname = 'target/flu/clusters/all_h3.fasta.E.txt'
     elif virus == 'hiv':
-        from escape import load_dingens2019
-        seq, seqs_escape = load_dingens2019()
-        train_fname = 'target/hiv/clusters/all_BG505.fasta'
-        mut_fname = 'target/hiv/mutation/mutations_hiv.fa'
         energy_fname = 'target/hiv/clusters/all_BG505.fasta.E.txt'
     else:
         raise ValueError('invalid option {}'.format(virus))
+
+    anchor = None
+    for idx, record in enumerate(SeqIO.parse(train_fname, 'fasta')):
+        if record.id == anchor_id:
+            anchor = str(record.seq).replace('-', '')
+    assert(anchor is not None)
 
     train_seqs = list(SeqIO.parse(train_fname, 'fasta'))
     mut_seqs = list(SeqIO.parse(mut_fname, 'fasta'))
     energies = np.loadtxt(energy_fname)
     assert(len(energies) == len(train_seqs) + len(mut_seqs))
 
-    escape_idx = [
-        idx for idx, mut_seq in enumerate(mut_seqs)
-        if str(mut_seq.seq).replace('-', '') in seqs_escape
-    ]
-    assert(len(escape_idx) == len(seqs_escape) - 1)
+    mut2energy = { str(seq.seq).replace('-', ''): -energy
+                   for seq, energy in
+                   zip(mut_seqs, energies[len(train_seqs):]) }
 
-    mut_energies = energies[len(train_seqs):]
+    mut_energies, escape_idx = [], []
+    for i in range(len(anchor)):
+        for word in vocabulary:
+            if anchor[i] == word:
+                continue
+            mut_seq = anchor[:i] + word + anchor[i + 1:]
+            if mut_seq in seqs_escape and \
+               (sum([ m['significant'] for m in seqs_escape[mut_seq] ]) > 0):
+                escape_idx.append(len(mut_energies))
+            mut_energies.append(mut2energy[mut_seq])
+    mut_energies = np.array(mut_energies)
 
     plot_result(mut_energies, escape_idx, virus, 'energy',
                 legend_name='Potts model energy')
 
-def escape_evcouplings(virus):
+def escape_evcouplings(virus, vocabulary):
+    seq, seqs_escape, train_fname, mut_fname, anchor_id = load(virus)
     if virus == 'h1':
-        from escape import load_lee2018
-        seq, seqs_escape = load_lee2018()
-        train_fname = 'target/flu/clusters/all_h1.fasta'
-        mut_fname = 'target/flu/mutation/mutations_h1.fa'
         energy_fname = ('target/flu/evcouplings/flu_h1/mutate/'
                         'flu_h1_single_mutant_matrix.csv')
-        anchor_id = ('gb:LC333185|ncbiId:BBB04702.1|UniProtKB:-N/A-|'
-                     'Organism:Influenza')
     elif virus == 'h3':
-        from escape import load_lee2019
-        seq, seqs_escape = load_lee2019()
-        train_fname = 'target/flu/clusters/all_h3.fasta'
-        mut_fname = 'target/flu/mutation/mutations_h3.fa'
         energy_fname = ('target/flu/evcouplings/flu_h3/mutate/'
                         'flu_h3_single_mutant_matrix.csv')
-        anchor_id = 'Reference_Perth2009_HA_coding_sequence'
     elif virus == 'hiv':
-        from escape import load_dingens2019
-        seq, seqs_escape = load_dingens2019()
-        train_fname = 'target/hiv/clusters/all_BG505.fasta'
-        mut_fname = 'target/hiv/mutation/mutations_hiv.fa'
         energy_fname = ('target/hiv/evcouplings/hiv_env/mutate/'
                         'hiv_env_single_mutant_matrix.csv')
-        anchor_id = 'A1.KE.-.BG505_W6M_ENV_C2.DQ208458'
     else:
         raise ValueError('invalid option {}'.format(virus))
 
@@ -126,55 +140,38 @@ def escape_evcouplings(virus):
             pos_aa_score_epi[(pos, mut)] = float(fields[7])
             pos_aa_score_ind[(pos, mut)] = float(fields[8])
 
-    mutations = [
-        str(record.seq)
-        for record in SeqIO.parse(mut_fname, 'fasta')
-    ]
-
     escape_idx = []
     mut_scores_epi, mut_scores_ind = [], []
-    for mut_idx, mutation in enumerate(mutations):
-        mutation = mutation.replace('-', '')
-        if mutation in seqs_escape:
-            escape_idx.append(mut_idx)
-        didx = [ c1 != c2
-                 for c1, c2 in zip(anchor, mutation) ].index(True)
-        if (didx, mutation[didx]) in pos_aa_score_epi:
-            mut_scores_epi.append(pos_aa_score_epi[(didx, mutation[didx])])
-            mut_scores_ind.append(pos_aa_score_ind[(didx, mutation[didx])])
-        else:
-            mut_scores_epi.append(0)
-            mut_scores_ind.append(0)
-    assert(len(escape_idx) == len(seqs_escape) - 1)
-
+    for i in range(len(anchor)):
+        for word in vocabulary:
+            if anchor[i] == word:
+                continue
+            mut_seq = anchor[:i] + word + anchor[i + 1:]
+            if mut_seq in seqs_escape and \
+               (sum([ m['significant'] for m in seqs_escape[mut_seq] ]) > 0):
+                escape_idx.append(len(mut_scores_epi))
+            if (i, word) in pos_aa_score_epi:
+                mut_scores_epi.append(pos_aa_score_epi[(i, word)])
+                mut_scores_ind.append(pos_aa_score_ind[(i, word)])
+            else:
+                mut_scores_epi.append(0)
+                mut_scores_ind.append(0)
     mut_scores_epi = np.array(mut_scores_epi)
     mut_scores_ind = np.array(mut_scores_ind)
 
-    plot_result(-mut_scores_epi, escape_idx, virus, 'evcouplings_epi',
+    plot_result(mut_scores_epi, escape_idx, virus, 'evcouplings_epi',
                 legend_name='EVcouplings (epistatic)')
-    plot_result(-mut_scores_ind, escape_idx, virus, 'evcouplings_ind',
+    plot_result(mut_scores_ind, escape_idx, virus, 'evcouplings_ind',
                 legend_name='EVcouplings (independent)')
 
-def escape_freq(virus):
+def escape_freq(virus, vocabulary):
+    seq, seqs_escape, _, mut_fname, anchor_id = load(virus)
     if virus == 'h1':
-        from escape import load_lee2018
-        seq, seqs_escape = load_lee2018()
         train_fname = 'target/flu/clusters/all.fasta'
-        mut_fname = 'target/flu/mutation/mutations_h1.fa'
-        anchor_id = ('gb:LC333185|ncbiId:BBB04702.1|UniProtKB:-N/A-|'
-                     'Organism:Influenza')
     elif virus == 'h3':
-        from escape import load_lee2019
-        seq, seqs_escape = load_lee2019()
         train_fname = 'target/flu/clusters/all.fasta'
-        mut_fname = 'target/flu/mutation/mutations_h3.fa'
-        anchor_id = 'Reference_Perth2009_HA_coding_sequence'
     elif virus == 'hiv':
-        from escape import load_dingens2019
-        seq, seqs_escape = load_dingens2019()
         train_fname = 'target/hiv/clusters/all.fasta'
-        mut_fname = 'target/hiv/mutation/mutations_hiv.fa'
-        anchor_id = 'A1.KE.-.BG505_W6M_ENV_C2.DQ208458'
     else:
         raise ValueError('invalid option {}'.format(virus))
 
@@ -186,29 +183,35 @@ def escape_freq(virus):
             anchor = mutation
         else:
             for pos, c in enumerate(mutation):
+                if c == '-':
+                    continue
                 if (pos, c) not in pos_aa_freq:
                     pos_aa_freq[(pos, c)] = 0.
                 pos_aa_freq[(pos, c)] += 1.
     assert(anchor is not None)
 
-    mutations = [
-        str(record.seq)
-        for record in SeqIO.parse(mut_fname, 'fasta')
-    ]
-
-    escape_idx = []
-    mut_freqs = []
-    for mut_idx, mutation in enumerate(mutations):
-        if mutation.replace('-', '') in seqs_escape:
-            escape_idx.append(mut_idx)
-        didx = [ c1 != c2
-                 for c1, c2 in zip(anchor, mutation) ].index(True)
-        if (didx, mutation[didx]) in pos_aa_freq:
-            mut_freqs.append(pos_aa_freq[(didx, mutation[didx])])
-        else:
-            mut_freqs.append(0)
+    escape_idx, mut_freqs = [], []
+    real_pos = 0
+    for i in range(len(anchor)):
+        if anchor[i] == '-':
+            continue
+        #if real_pos not in interval:
+        #    real_pos += 1
+        #    continue
+        for word in vocabulary:
+            if anchor[i] == word:
+                continue
+            mut_seq = anchor[:i] + word + anchor[i + 1:]
+            mut_seq = mut_seq.replace('-', '')
+            if mut_seq in seqs_escape and \
+               (sum([ m['significant'] for m in seqs_escape[mut_seq] ]) > 0):
+                escape_idx.append(len(mut_freqs))
+            if (i, word) in pos_aa_freq:
+                mut_freqs.append(pos_aa_freq[(i, word)])
+            else:
+                mut_freqs.append(0)
+        real_pos += 1
     mut_freqs = np.array(mut_freqs)
-    assert(len(escape_idx) == len(seqs_escape) - 1)
 
     plot_result(mut_freqs, escape_idx, virus, 'mutfreq',
                 legend_name='Mutation frequency')
@@ -219,7 +222,7 @@ def tape_embed(sequence, model, tokenizer):
     output = model(token_ids)
     return output[0].detach().numpy().mean(1).ravel()
 
-def escape_tape(virus, pretrained='transformer'):
+def escape_tape(virus, vocabulary, pretrained='transformer'):
     if pretrained == 'transformer':
         from tape import ProteinBertModel
         model_class = ProteinBertModel
@@ -237,31 +240,16 @@ def escape_tape(virus, pretrained='transformer'):
     model = model_class.from_pretrained(model_name)
     tokenizer = TAPETokenizer(vocab=vocab)
 
+    seq, seqs_escape, train_fname, mut_fname, anchor_id = load(virus)
     if virus == 'h1':
-        from escape import load_lee2018
-        seq, seqs_escape = load_lee2018()
-        train_fname = 'target/flu/clusters/all.fasta'
-        mut_fname = 'target/flu/mutation/mutations_h1.fa'
         embed_fname = ('target/flu/embedding/{}_h1.npz'
                        .format(fname_prefix))
-        anchor_id = ('gb:LC333185|ncbiId:BBB04702.1|UniProtKB:-N/A-|'
-                     'Organism:Influenza')
     elif virus == 'h3':
-        from escape import load_lee2019
-        seq, seqs_escape = load_lee2019()
-        train_fname = 'target/flu/clusters/all.fasta'
-        mut_fname = 'target/flu/mutation/mutations_h3.fa'
         embed_fname = ('target/flu/embedding/{}_h3.npz'
                        .format(fname_prefix))
-        anchor_id = 'Reference_Perth2009_HA_coding_sequence'
     elif virus == 'hiv':
-        from escape import load_dingens2019
-        seq, seqs_escape = load_dingens2019()
-        train_fname = 'target/hiv/clusters/all_BG505.fasta'
-        mut_fname = 'target/hiv/mutation/mutations_hiv.fa'
         embed_fname = ('target/hiv/embedding/{}_hiv.npz'
                        .format(fname_prefix))
-        anchor_id = 'A1.KE.-.BG505_W6M_ENV_C2.DQ208458'
     else:
         raise ValueError('invalid option {}'.format(virus))
 
@@ -273,55 +261,46 @@ def escape_tape(virus, pretrained='transformer'):
 
     base_embedding = tape_embed(anchor.replace('-', ''),
                                 model, tokenizer)
-
     with np.load(embed_fname, allow_pickle=True) as data:
         embeddings = { name: data[name][()]['avg']
                        for name in data.files }
 
     mutations = [
-        str(record.seq)
-        for record in SeqIO.parse(mut_fname, 'fasta')
+        str(record.seq) for record in SeqIO.parse(mut_fname, 'fasta')
     ]
-
-    escape_idx = []
-    changes = []
-    for mut_idx, mutation in enumerate(mutations):
-        if mutation.replace('-', '') in seqs_escape:
-            escape_idx.append(mut_idx)
+    mut2change = {}
+    for mutation in mutations:
         didx = [ c1 != c2
                  for c1, c2 in zip(anchor, mutation) ].index(True)
         embedding = embeddings['mut_{}_{}'.format(didx, mutation[didx])]
-        changes.append(abs(base_embedding - embedding).sum())
-    changes = np.array(changes)
-    assert(len(escape_idx) == len(seqs_escape) - 1)
+        mutation_clean = mutation.replace('-', '')
+        mut2change[mutation_clean] = abs(base_embedding - embedding).sum()
 
-    plot_result(changes, escape_idx, virus, fname_prefix,
+    anchor = anchor.replace('-', '')
+    escape_idx, changes = [], []
+    for i in range(len(anchor)):
+        for word in vocabulary:
+            if anchor[i] == word:
+                continue
+            mut_seq = anchor[:i] + word + anchor[i + 1:]
+            if mut_seq in seqs_escape and \
+               (sum([ m['significant'] for m in seqs_escape[mut_seq] ]) > 0):
+                escape_idx.append(len(changes))
+            changes.append(mut2change[mut_seq])
+    changes = np.array(changes)
+
+    plot_result(-changes, escape_idx, virus, fname_prefix,
                 legend_name='TAPE ({})'.format(fname_prefix))
 
 
-def escape_bepler(virus):
+def escape_bepler(virus, vocabulary):
+    seq, seqs_escape, train_fname, mut_fname, anchor_id = load(virus)
     if virus == 'h1':
-        from escape import load_lee2018
-        seq, seqs_escape = load_lee2018()
-        train_fname = 'target/flu/clusters/all.fasta'
-        mut_fname = 'target/flu/mutation/mutations_h1.fa'
         embed_fname = 'target/flu/embedding/bepler_ssa_h1.txt'
-        anchor_id = ('gb:LC333185|ncbiId:BBB04702.1|UniProtKB:-N/A-|'
-                     'Organism:Influenza')
     elif virus == 'h3':
-        from escape import load_lee2019
-        seq, seqs_escape = load_lee2019()
-        train_fname = 'target/flu/clusters/all.fasta'
-        mut_fname = 'target/flu/mutation/mutations_h3.fa'
         embed_fname = 'target/flu/embedding/bepler_ssa_h3.txt'
-        anchor_id = 'Reference_Perth2009_HA_coding_sequence'
     elif virus == 'hiv':
-        from escape import load_dingens2019
-        seq, seqs_escape = load_dingens2019()
-        train_fname = 'target/hiv/clusters/all_BG505.fasta'
-        mut_fname = 'target/hiv/mutation/mutations_hiv.fa'
         embed_fname = 'target/hiv/embedding/bepler_ssa_hiv.txt'
-        anchor_id = 'A1.KE.-.BG505_W6M_ENV_C2.DQ208458'
     else:
         raise ValueError('invalid option {}'.format(virus))
 
@@ -344,42 +323,65 @@ def escape_bepler(virus):
     base_embedding = embeddings['base']
 
     mutations = [
-        str(record.seq)
-        for record in SeqIO.parse(mut_fname, 'fasta')
+        str(record.seq) for record in SeqIO.parse(mut_fname, 'fasta')
     ]
-
-    escape_idx = []
-    changes = []
-    for mut_idx, mutation in enumerate(mutations):
-        if mutation.replace('-', '') in seqs_escape:
-            escape_idx.append(mut_idx)
+    mut2change = {}
+    for mutation in mutations:
         didx = [ c1 != c2
                  for c1, c2 in zip(anchor, mutation) ].index(True)
         embedding = embeddings['mut_{}_{}'.format(didx, mutation[didx])]
-        changes.append(abs(base_embedding - embedding).sum())
-    changes = np.array(changes)
-    assert(len(escape_idx) == len(seqs_escape) - 1)
+        mutation_clean = mutation.replace('-', '')
+        mut2change[mutation_clean] = abs(base_embedding - embedding).sum()
 
-    plot_result(changes, escape_idx, virus, fname_prefix,
-                legend_name='Bepler')
+    anchor = anchor.replace('-', '')
+    escape_idx, changes = [], []
+    for i in range(len(anchor)):
+        for word in vocabulary:
+            if anchor[i] == word:
+                continue
+            mut_seq = anchor[:i] + word + anchor[i + 1:]
+            if mut_seq in seqs_escape and \
+               (sum([ m['significant'] for m in seqs_escape[mut_seq] ]) > 0):
+                escape_idx.append(len(changes))
+            changes.append(mut2change[mut_seq])
+    changes = np.array(changes)
+
+    plot_result(-changes, escape_idx, virus, 'bepler', legend_name='Bepler')
 
 if __name__ == '__main__':
     args = parse_args()
 
+    if args.virus == 'hiv':
+        AAs = [
+            'A', 'R', 'N', 'D', 'C', 'Q', 'E', 'G', 'H',
+            'I', 'L', 'K', 'M', 'F', 'P', 'S', 'T', 'W',
+            'Y', 'V', 'X', 'Z', 'J', 'U', 'B',
+        ]
+        vocabulary = { aa: idx + 1 for idx, aa in enumerate(sorted(AAs))
+                       if aa not in { 'B', 'Z', 'X', 'J' } }
+    else:
+        AAs = [
+            'A', 'R', 'N', 'D', 'C', 'Q', 'E', 'G', 'H',
+            'I', 'L', 'K', 'M', 'F', 'P', 'S', 'T', 'W',
+            'Y', 'V', 'X', 'Z', 'J', 'U', 'B', 'Z'
+        ]
+        vocabulary = { aa: idx + 1 for idx, aa in enumerate(sorted(AAs))
+                       if aa not in { 'B', 'Z', 'X', 'J' } }
+
     if args.method == 'bepler':
-        escape_bepler(args.virus)
+        escape_bepler(args.virus, vocabulary)
 
     elif args.method == 'energy':
-        escape_energy(args.virus)
+        escape_energy(args.virus, vocabulary)
 
     elif args.method == 'evcouplings':
-        escape_evcouplings(args.virus)
+        escape_evcouplings(args.virus, vocabulary)
 
     elif args.method == 'freq':
-        escape_freq(args.virus)
+        escape_freq(args.virus, vocabulary)
 
     elif args.method == 'tape':
-        escape_tape(args.virus)
+        escape_tape(args.virus, vocabulary)
 
     elif args.method == 'unirep':
-        escape_tape(args.virus, 'unirep')
+        escape_tape(args.virus, vocabulary, 'unirep')

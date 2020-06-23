@@ -168,14 +168,15 @@ def fitness_freq(virus):
             anchor = mutation
         else:
             for pos, c in enumerate(mutation):
+                if c == '-':
+                    continue
                 if (pos, c) not in pos_aa_freq:
                     pos_aa_freq[(pos, c)] = 0.
                 pos_aa_freq[(pos, c)] += 1.
     assert(anchor is not None)
 
     mutations = [
-        str(record.seq)
-        for record in SeqIO.parse(mut_fname, 'fasta')
+        str(record.seq) for record in SeqIO.parse(mut_fname, 'fasta')
     ]
 
     mut_freqs, fitnesses = [], []

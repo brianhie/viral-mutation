@@ -60,7 +60,7 @@ def load_haddox2018():
         wt_seq = translate(SeqIO.read(
             'data/hiv/fitness_haddox2018/'
             '{}_env.fasta'.format(strain), 'fasta'
-        ).seq)[:-1]
+        ).seq).rstrip('*')
         strains[strain] = wt_seq
 
         fname = 'data/hiv/fitness_haddox2018/{}_to_HXB2.csv'.format(strain)

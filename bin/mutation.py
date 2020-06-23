@@ -320,8 +320,8 @@ def analyze_comb_fitness(
     plt.close()
 
 def analyze_semantics(args, model, vocabulary, seq_to_mutate, escape_seqs,
-                      prob_cutoff=0., beta=1., plot_acquisition=True,
-                      plot_namespace=None, verbose=True):
+                      min_pos=None, max_pos=None, prob_cutoff=0., beta=1.,
+                      plot_acquisition=True, plot_namespace=None, verbose=True):
     if plot_acquisition:
         dirname = ('target/{}/semantics/cache'.format(args.namespace))
         mkdir_p(dirname)
@@ -332,8 +332,13 @@ def analyze_semantics(args, model, vocabulary, seq_to_mutate, escape_seqs,
         args, seq_to_mutate, vocabulary, model, verbose=verbose
     )
 
+    if min_pos is None:
+        min_pos = 0
+    if max_pos is None:
+        max_pos = len(seq_to_mutate) - 1
+
     word_pos_prob = {}
-    for i in range(len(seq_to_mutate)):
+    for i in range(min_pos, max_pos + 1):
         for word in vocabulary:
             word_idx = vocabulary[word]
             prob = y_pred[i + 1, word_idx]
@@ -343,6 +348,8 @@ def analyze_semantics(args, model, vocabulary, seq_to_mutate, escape_seqs,
     prob_seqs = { seq_to_mutate: [ {} ] }
     seq_prob = {}
     for (word, pos), prob in prob_sorted:
+        if word in { 'B', 'Z', 'X', 'J' }:
+            continue
         mutable = seq_to_mutate[:pos] + word + seq_to_mutate[pos + 1:]
         seq_prob[mutable] = prob
         if prob >= prob_cutoff:

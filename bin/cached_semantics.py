@@ -110,8 +110,8 @@ def cached_escape_semantics(cache_fname, beta, plot=True,
           .format(beta, namespace))
 
     print('AUC (CSCS): {}'.format(norm_auc))
-    print('AUC (semantic change onlny): {}'.format(norm_auc_change))
-    print('AUC (grammaticality onlny): {}'.format(norm_auc_prob))
+    print('AUC (semantic change only): {}'.format(norm_auc_change))
+    print('AUC (grammaticality only): {}'.format(norm_auc_prob))
 
     print('{:.4g} (mean log prob), {:.4g} (mean log prob escape), '
           '{:.4g} (p-value)'
