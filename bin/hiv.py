@@ -258,7 +258,6 @@ if __name__ == '__main__':
             min_pos=min_pos, max_pos=max_pos,
             prob_cutoff=0., beta=1., plot_acquisition=True,
         )
-        exit()
 
         from escape import load_dingens2019
         tprint('Dingens et al. 2019...')
