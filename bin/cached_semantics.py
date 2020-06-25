@@ -55,6 +55,10 @@ def cached_escape(cache_fname, beta, plot=True, namespace='semantics'):
                     .format(namespace), dpi=300)
         plt.close()
 
+    if len(escape_prob) == 0:
+        print('No escape mutations found.')
+        return
+
     acq_argsort = ss.rankdata(-acquisition)
     escape_rank_dist = acq_argsort[escape_idx]
 
@@ -132,4 +136,4 @@ def cached_escape(cache_fname, beta, plot=True, namespace='semantics'):
                                   alternative='two-sided')[1]))
 
 if __name__ == '__main__':
-    cached_escape(sys.argv[1], 5.)
+    cached_escape(sys.argv[1], 1.)

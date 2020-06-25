@@ -1,8 +1,5 @@
 from mutation import *
 
-from Bio import BiopythonWarning
-from Bio import SeqIO
-
 np.random.seed(1)
 random.seed(1)
 
@@ -97,32 +94,29 @@ def process(args, fnames, meta_fnames):
     return seqs
 
 def split_seqs(seqs, split_method='random'):
-    with warnings.catch_warnings():
-        warnings.simplefilter('ignore', BiopythonWarning)
+    train_seqs, test_seqs = {}, {}
 
-        train_seqs, test_seqs = {}, {}
+    old_cutoff = 1900
+    new_cutoff = 2008
 
-        old_cutoff = 1900
-        new_cutoff = 2008
-
-        tprint('Splitting seqs...')
-        for seq in seqs:
-            # Pick validation set based on date.
-            seq_dates = [
-                meta['year'] for meta in seqs[seq]
-                if meta['year'] is not None
-            ]
-            if len(seq_dates) == 0:
+    tprint('Splitting seqs...')
+    for seq in seqs:
+        # Pick validation set based on date.
+        seq_dates = [
+            meta['year'] for meta in seqs[seq]
+            if meta['year'] is not None
+        ]
+        if len(seq_dates) == 0:
+            test_seqs[seq] = seqs[seq]
+            continue
+        if len(seq_dates) > 0:
+            oldest_date = sorted(seq_dates)[0]
+            if oldest_date < old_cutoff or oldest_date >= new_cutoff:
                 test_seqs[seq] = seqs[seq]
                 continue
-            if len(seq_dates) > 0:
-                oldest_date = sorted(seq_dates)[0]
-                if oldest_date < old_cutoff or oldest_date >= new_cutoff:
-                    test_seqs[seq] = seqs[seq]
-                    continue
-            train_seqs[seq] = seqs[seq]
-        tprint('{} train seqs, {} test seqs.'
-               .format(len(train_seqs), len(test_seqs)))
+        train_seqs[seq] = seqs[seq]
+    tprint('{} train seqs, {} test seqs.'
+           .format(len(train_seqs), len(test_seqs)))
 
     return train_seqs, test_seqs
 
@@ -130,9 +124,7 @@ def setup(args):
     fnames = [ 'data/hiv/HIV-1_env_samelen.fa' ]
     meta_fnames = [ 'data/hiv/HIV-1_env_samelen.fa' ]
 
-    with warnings.catch_warnings():
-        warnings.simplefilter('ignore', BiopythonWarning)
-        seqs = process(args, fnames, meta_fnames)
+    seqs = process(args, fnames, meta_fnames)
 
     seq_len = max([ len(seq) for seq in seqs ]) + 2
     vocab_size = len(AAs) + 2

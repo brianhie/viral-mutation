@@ -1,7 +1,7 @@
-from Bio import SeqIO
+from utils import Counter, SeqIO
+
 from Bio.Seq import translate
 import numpy as np
-from utils import Counter
 
 def load_doud2016():
     strain = 'h1'

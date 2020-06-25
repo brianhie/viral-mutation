@@ -17,6 +17,10 @@ import sys
 import time
 import warnings
 
+from Bio import BiopythonWarning
+warnings.simplefilter('ignore', BiopythonWarning)
+from Bio import Seq, SeqIO
+
 np.random.seed(1)
 random.seed(1)
 

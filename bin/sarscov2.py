@@ -1,8 +1,5 @@
 from mutation import *
 
-from Bio import BiopythonWarning
-from Bio import SeqIO
-
 np.random.seed(1)
 random.seed(1)
 
@@ -107,19 +104,16 @@ def process(fnames):
     return seqs
 
 def split_seqs(seqs, split_method='random'):
-    with warnings.catch_warnings():
-        warnings.simplefilter('ignore', BiopythonWarning)
+    train_seqs, test_seqs = {}, {}
 
-        train_seqs, test_seqs = {}, {}
-
-        tprint('Splitting seqs...')
-        for idx, seq in enumerate(seqs):
-            if idx % 10 < 2:
-                test_seqs[seq] = seqs[seq]
-            else:
-                train_seqs[seq] = seqs[seq]
-        tprint('{} train seqs, {} test seqs.'
-               .format(len(train_seqs), len(test_seqs)))
+    tprint('Splitting seqs...')
+    for idx, seq in enumerate(seqs):
+        if idx % 10 < 2:
+            test_seqs[seq] = seqs[seq]
+        else:
+            train_seqs[seq] = seqs[seq]
+    tprint('{} train seqs, {} test seqs.'
+           .format(len(train_seqs), len(test_seqs)))
 
     return train_seqs, test_seqs
 
@@ -128,9 +122,7 @@ def setup(args):
                'data/cov/viprbrc_db.fasta',
                'data/cov/gisaid.fasta' ]
 
-    with warnings.catch_warnings():
-        warnings.simplefilter('ignore', BiopythonWarning)
-        seqs = process(fnames)
+    seqs = process(fnames)
 
     seq_len = max([ len(seq) for seq in seqs ]) + 2
     vocab_size = len(AAs) + 2
@@ -244,11 +236,11 @@ if __name__ == '__main__':
             raise ValueError('Model must be trained or loaded '
                              'from checkpoint.')
 
-        from escape import load_korber2020
-
-        seq_to_mutate, escape_seqs = load_korber2020()
-        analyze_semantics(args, model, vocabulary, seq_to_mutate, escape_seqs,
-                          prob_cutoff=1e-10, beta=1., plot_acquisition=True,)
+        seq_to_mutate = str(SeqIO.read('data/cov/cov2_spike_wt.fasta',
+                                       'fasta').seq)
+        analyze_semantics(args, model, vocabulary, seq_to_mutate, {},
+                          prob_cutoff=0, beta=1.,
+                          plot_acquisition=True,)
 
     if args.combfit:
         from combinatorial_fitness import load_starr2020

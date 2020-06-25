@@ -1,4 +1,4 @@
-from Bio import Seq, SeqIO
+from utils import Seq, SeqIO
 
 def load_lee2018(survival_cutoff=0.05):
     pos_map = {}

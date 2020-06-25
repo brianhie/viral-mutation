@@ -1,6 +1,5 @@
 from utils import *
 
-from Bio import SeqIO
 from sklearn.metrics import auc
 
 def parse_args():
