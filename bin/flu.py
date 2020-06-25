@@ -70,6 +70,8 @@ def process(fnames, meta_fnames):
         for record in SeqIO.parse(fname, 'fasta'):
             if 'Reference_Perth2009_HA_coding_sequence' in record.description:
                 continue
+            if str(record.seq).count('X') > 10:
+                continue
             if record.seq not in seqs:
                 seqs[record.seq] = []
             accession = record.description.split('|')[0].split(':')[1]
@@ -277,7 +279,7 @@ def evolve(args, model, vocabulary, start_seq,
     tprint(start_seq)
     curr_seq = start_seq
     for time in range(n_timesteps):
-        seqs, prob, change, _, _ = analyze_semantics(
+        seqs, prob, change = analyze_semantics(
             args, model, vocabulary, curr_seq, {},
             prob_cutoff=prob_cutoff, beta=beta,
             plot_acquisition=False, verbose=verbose

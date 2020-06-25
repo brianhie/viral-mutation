@@ -158,6 +158,7 @@ def batch_train(args, model, seqs, vocabulary, batch_size=5000,
             end = (batchi + 1) * batch_size
             seqs_batch = { seq: seqs[seq] for seq in perm_seqs[start:end] }
             train_test(args, model, seqs_batch, vocabulary)
+            del seqs_batch
 
         fname_prefix = ('target/{0}/checkpoints/{1}/{1}_{2}'
                         .format(args.namespace, args.model_name, args.dim))
@@ -345,15 +346,13 @@ def analyze_semantics(args, model, vocabulary, seq_to_mutate, escape_seqs,
             word_pos_prob[(word, i)] = prob
 
     prob_sorted = sorted(word_pos_prob.items(), key=lambda x: -x[1])
-    prob_seqs = { seq_to_mutate: [ {} ] }
+    prob_seqs = { seq_to_mutate: [ { 'word': None, 'pos': None } ] }
     seq_prob = {}
     for (word, pos), prob in prob_sorted:
-        if word in { 'B', 'Z', 'X', 'J' }:
-            continue
         mutable = seq_to_mutate[:pos] + word + seq_to_mutate[pos + 1:]
         seq_prob[mutable] = prob
         if prob >= prob_cutoff:
-            prob_seqs[mutable] = [ {} ]
+            prob_seqs[mutable] = [ { 'word': word, 'pos': pos } ]
 
     seqs = np.array([ str(seq) for seq in sorted(seq_prob.keys()) ])
 
@@ -383,26 +382,34 @@ def analyze_semantics(args, model, vocabulary, seq_to_mutate, escape_seqs,
         else:
             seq_change[seq] = 0
 
-    prob = np.array([ seq_prob[seq] for seq in seqs ])
-    change = np.array([ seq_change[seq] for seq in seqs ])
-
-    escape_idx = np.array([
-        ((seq in escape_seqs) and
-         (sum([ m['significant'] for m in escape_seqs[seq] ]) > 0))
-        for seq in seqs
-    ])
-    viable_idx = np.array([ seq in escape_seqs for seq in seqs ])
+    cache_fname = dirname + (
+        '/analyze_semantics_{}_{}_{}.txt'
+        .format(plot_namespace, args.model_name, args.dim)
+    )
+    probs, changes = [], []
+    with open(cache_fname, 'w') as of:
+        fields = [ 'pos', 'wt', 'mut', 'prob', 'change',
+                   'is_viable', 'is_escape' ]
+        of.write('\t'.join(fields) + '\n')
+        for seq in seqs:
+            prob = seq_prob[seq]
+            change = seq_change[seq]
+            mut = prob_seqs[seq][0]['word']
+            pos = prob_seqs[seq][0]['pos']
+            orig = seq_to_mutate[pos]
+            is_viable = seq in escape_seqs
+            is_escape = ((seq in escape_seqs) and
+                         (sum([ m['significant']
+                                for m in escape_seqs[seq] ]) > 0))
+            fields = [ pos, orig, mut, prob, change, is_viable, is_escape ]
+            of.write('\t'.join([ str(field) for field in fields ]) + '\n')
+            probs.append(prob)
+            changes.append(change)
 
     if plot_acquisition:
-        cache_fname = dirname + ('/plot_{}_{}.npz'
-                                 .format(args.model_name, args.dim))
-        np.savez_compressed(
-            cache_fname, prob=prob, change=change,
-            escape_idx=escape_idx, viable_idx=viable_idx,
-        )
-        from cached_semantics import cached_escape_semantics
-        cached_escape_semantics(cache_fname, beta,
-                                plot=plot_acquisition,
-                                namespace=plot_namespace)
+        from cached_semantics import cached_escape
+        cached_escape(cache_fname, beta,
+                      plot=plot_acquisition,
+                      namespace=plot_namespace)
 
-    return seqs, prob, change, escape_idx, viable_idx
+    return seqs, np.array(probs), np.array(changes)

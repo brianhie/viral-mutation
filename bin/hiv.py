@@ -88,6 +88,8 @@ def process(args, fnames, meta_fnames):
             if args.namespace == 'hiva' and \
                (not meta['subtype'].startswith('A')):
                 continue
+            if 'X' in record.seq:
+                continue
             if record.seq not in seqs:
                 seqs[record.seq] = []
             seqs[record.seq].append(meta)
@@ -136,7 +138,7 @@ def setup(args):
     vocab_size = len(AAs) + 2
 
     model = get_model(args, seq_len, vocab_size,
-                      inference_batch_size=750)
+                      inference_batch_size=2100)
 
     return model, seqs
 
@@ -246,35 +248,32 @@ if __name__ == '__main__':
             raise ValueError('Model must be trained or loaded '
                              'from checkpoint.')
 
-        from escape import load_dingens2017
-        tprint('Dingens et al. 2017...')
-        seq_to_mutate, escape_seqs = load_dingens2017()
-        min_pos = min([ escape_seqs[seq][0]['pos']
-                        for seq in escape_seqs ])
-        max_pos = max([ escape_seqs[seq][0]['pos']
-                        for seq in escape_seqs ])
-        analyze_semantics(
-            args, model, vocabulary, seq_to_mutate, escape_seqs,
-            min_pos=min_pos, max_pos=max_pos,
-            prob_cutoff=0., beta=1., plot_acquisition=True,
-        )
-
         from escape import load_dingens2019
         tprint('Dingens et al. 2019...')
         seq_to_mutate, escape_seqs = load_dingens2019()
-        min_pos = min([ escape_seqs[seq][0]['pos']
-                        for seq in escape_seqs ])
-        max_pos = max([ escape_seqs[seq][0]['pos']
-                        for seq in escape_seqs ])
+        positions = [ escape_seqs[seq][0]['pos'] for seq in escape_seqs ]
+        min_pos, max_pos = min(positions), max(positions)
         analyze_semantics(
             args, model, vocabulary, seq_to_mutate, escape_seqs,
             min_pos=min_pos, max_pos=max_pos,
             prob_cutoff=0., beta=1., plot_acquisition=True,
         )
 
+        #from escape import load_dingens2017
+        #tprint('Dingens et al. 2017...')
+        #seq_to_mutate, escape_seqs = load_dingens2017()
+        #positions = [ escape_seqs[seq][0]['pos'] for seq in escape_seqs ]
+        #min_pos, max_pos = min(positions), max(positions)
+        #analyze_semantics(
+        #    args, model, vocabulary, seq_to_mutate, escape_seqs,
+        #    min_pos=min_pos, max_pos=max_pos,
+        #    prob_cutoff=0., beta=1., plot_acquisition=True,
+        #    plot_namespace='bf520'
+        #)
+
     if args.combfit:
         from combinatorial_fitness import load_haddox2018
-        tprint('Haddox et al. 2020...')
+        tprint('Haddox et al. 2018...')
         wt_seqs, seqs_fitness = load_haddox2018()
         strains = sorted(wt_seqs.keys())
         for strain in strains:

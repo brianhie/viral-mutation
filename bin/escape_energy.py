@@ -27,7 +27,13 @@ def load(virus):
         train_fname = 'target/flu/clusters/all_h3.fasta'
         mut_fname = 'target/flu/mutation/mutations_h3.fa'
         anchor_id = 'Reference_Perth2009_HA_coding_sequence'
-    elif virus == 'hiv':
+    elif virus == 'bf520':
+        from escape import load_dingens2017
+        seq, seqs_escape = load_dingens2017()
+        train_fname = 'target/hiv/clusters/all_BF520.fasta'
+        mut_fname = 'target/hiv/mutation/mutations_bf520.fa'
+        anchor_id = 'A1.KE.1994.BF520.W14M.C2.KX168094'
+    elif virus == 'bg505':
         from escape import load_dingens2019
         seq, seqs_escape = load_dingens2019()
         train_fname = 'target/hiv/clusters/all_BG505.fasta'
@@ -37,7 +43,6 @@ def load(virus):
         raise ValueError('invalid option {}'.format(virus))
 
     return seq, seqs_escape, train_fname, mut_fname, anchor_id
-
 
 def plot_result(rank_vals, escape_idx, virus, fname_prefix,
                 legend_name='Result'):
@@ -52,6 +57,9 @@ def plot_result(rank_vals, escape_idx, virus, fname_prefix,
     norm_auc = auc(n_consider, n_escape) / norm
 
     escape_frac = len(escape_rank_dist) / float(len(rank_vals))
+
+    tprint('Results for {} ({}):'.format(virus, legend_name))
+    tprint('AUC = {}'.format(norm_auc))
 
     plt.figure()
     plt.plot(n_consider, n_escape)
@@ -73,7 +81,9 @@ def escape_energy(virus, vocabulary):
         energy_fname = 'target/flu/clusters/all_h1.fasta.E.txt'
     elif virus == 'h3':
         energy_fname = 'target/flu/clusters/all_h3.fasta.E.txt'
-    elif virus == 'hiv':
+    elif virus == 'bf520':
+        energy_fname = 'target/hiv/clusters/all_BF520.fasta.E.txt'
+    elif virus == 'bg505':
         energy_fname = 'target/hiv/clusters/all_BG505.fasta.E.txt'
     else:
         raise ValueError('invalid option {}'.format(virus))
@@ -95,6 +105,10 @@ def escape_energy(virus, vocabulary):
 
     mut_energies, escape_idx = [], []
     for i in range(len(anchor)):
+        if virus == 'bf520' and (i < 30 or i > 690):
+            continue
+        if virus == 'bg505' and (i < 29 or i > 698):
+            continue
         for word in vocabulary:
             if anchor[i] == word:
                 continue
@@ -116,7 +130,10 @@ def escape_evcouplings(virus, vocabulary):
     elif virus == 'h3':
         energy_fname = ('target/flu/evcouplings/flu_h3/mutate/'
                         'flu_h3_single_mutant_matrix.csv')
-    elif virus == 'hiv':
+    elif virus == 'bf520':
+        energy_fname = ('target/hiv/evcouplings/hiv_bf520/mutate/'
+                        'hiv_bf520_single_mutant_matrix.csv')
+    elif virus == 'bg505':
         energy_fname = ('target/hiv/evcouplings/hiv_env/mutate/'
                         'hiv_env_single_mutant_matrix.csv')
     else:
@@ -143,6 +160,10 @@ def escape_evcouplings(virus, vocabulary):
     escape_idx = []
     mut_scores_epi, mut_scores_ind = [], []
     for i in range(len(anchor)):
+        if virus == 'bf520' and (i < 30 or i > 690):
+            continue
+        if virus == 'bg505' and (i < 29 or i > 698):
+            continue
         for word in vocabulary:
             if anchor[i] == word:
                 continue
@@ -165,15 +186,7 @@ def escape_evcouplings(virus, vocabulary):
                 legend_name='EVcouplings (independent)')
 
 def escape_freq(virus, vocabulary):
-    seq, seqs_escape, _, mut_fname, anchor_id = load(virus)
-    if virus == 'h1':
-        train_fname = 'target/flu/clusters/all.fasta'
-    elif virus == 'h3':
-        train_fname = 'target/flu/clusters/all.fasta'
-    elif virus == 'hiv':
-        train_fname = 'target/hiv/clusters/all.fasta'
-    else:
-        raise ValueError('invalid option {}'.format(virus))
+    seq, seqs_escape, train_fname, mut_fname, anchor_id = load(virus)
 
     anchor = None
     pos_aa_freq = {}
@@ -195,9 +208,12 @@ def escape_freq(virus, vocabulary):
     for i in range(len(anchor)):
         if anchor[i] == '-':
             continue
-        #if real_pos not in interval:
-        #    real_pos += 1
-        #    continue
+        if virus == 'bf520' and (real_pos < 30 or real_pos > 690):
+            real_pos += 1
+            continue
+        if virus == 'bg505' and (real_pos < 29 or real_pos > 698):
+            real_pos += 1
+            continue
         for word in vocabulary:
             if anchor[i] == word:
                 continue
@@ -247,7 +263,10 @@ def escape_tape(virus, vocabulary, pretrained='transformer'):
     elif virus == 'h3':
         embed_fname = ('target/flu/embedding/{}_h3.npz'
                        .format(fname_prefix))
-    elif virus == 'hiv':
+    elif virus == 'bf520':
+        embed_fname = ('target/hiv/embedding/{}_bf520.npz'
+                       .format(fname_prefix))
+    elif virus == 'bg505':
         embed_fname = ('target/hiv/embedding/{}_hiv.npz'
                        .format(fname_prefix))
     else:
@@ -279,6 +298,10 @@ def escape_tape(virus, vocabulary, pretrained='transformer'):
     anchor = anchor.replace('-', '')
     escape_idx, changes = [], []
     for i in range(len(anchor)):
+        if virus == 'bf520' and (i < 30 or i > 690):
+            continue
+        if virus == 'bg505' and (i < 29 or i > 698):
+            continue
         for word in vocabulary:
             if anchor[i] == word:
                 continue
@@ -299,7 +322,9 @@ def escape_bepler(virus, vocabulary):
         embed_fname = 'target/flu/embedding/bepler_ssa_h1.txt'
     elif virus == 'h3':
         embed_fname = 'target/flu/embedding/bepler_ssa_h3.txt'
-    elif virus == 'hiv':
+    elif virus == 'bf520':
+        embed_fname = 'target/hiv/embedding/bepler_ssa_bf520.txt'
+    elif virus == 'bg505':
         embed_fname = 'target/hiv/embedding/bepler_ssa_hiv.txt'
     else:
         raise ValueError('invalid option {}'.format(virus))
@@ -336,6 +361,10 @@ def escape_bepler(virus, vocabulary):
     anchor = anchor.replace('-', '')
     escape_idx, changes = [], []
     for i in range(len(anchor)):
+        if virus == 'bf520' and (i < 30 or i > 690):
+            continue
+        if virus == 'bg505' and (i < 29 or i > 698):
+            continue
         for word in vocabulary:
             if anchor[i] == word:
                 continue

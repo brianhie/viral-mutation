@@ -79,11 +79,10 @@ class LanguageModel(object):
             assert(X.shape[0] == n_samples)
 
         # Embed using the output of a hidden layer.
-        hidden = Model(
+        hidden = tf.keras.backend.function(
             inputs=self.model_.input,
-            outputs=self.model_.get_layer('embed_layer').output
+            outputs=self.model_.get_layer('embed_layer').output,
         )
-        hidden.compile('adam', 'mean_squared_error')
 
         # Manage batching to avoid overwhelming GPU memory.
         X_embed_cat = []
@@ -98,7 +97,7 @@ class LanguageModel(object):
                 X_batch = [ X_i[start:end] for X_i in X ]
             else:
                 X_batch = X[start:end]
-            X_embed_cat.append(hidden.predict(X_batch, batch_size=end-start))
+            X_embed_cat.append(hidden(X_batch))
             if self.verbose_:
                 prog_bar.add(1)
         X_embed_cat = np.concatenate(X_embed_cat)

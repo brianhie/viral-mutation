@@ -2,13 +2,20 @@ from utils import *
 
 from sklearn.metrics import auc
 
-def cached_escape_semantics(cache_fname, beta, plot=True,
-                            namespace='semantics'):
-    data = np.load(cache_fname)
-    prob = data['prob']
-    change = data['change']
-    escape_idx = data['escape_idx']
-    viable_idx = data['viable_idx']
+def cached_escape(cache_fname, beta, plot=True, namespace='semantics'):
+    prob, change, escape_idx, viable_idx = [], [], [], []
+    with open(cache_fname) as f:
+        f.readline()
+        for line in f:
+            fields = line.rstrip().split('\t')
+            prob.append(float(fields[3]))
+            change.append(float(fields[4]))
+            viable_idx.append(fields[5] == 'True')
+            escape_idx.append(fields[6] == 'True')
+    prob, orig_prob = np.array(prob), np.array(prob)
+    change, orig_change  = np.array(change), np.array(change)
+    escape_idx = np.array(escape_idx)
+    viable_idx = np.array(viable_idx)
 
     acquisition = ss.rankdata(change) + (beta * ss.rankdata(prob))
 
@@ -68,12 +75,12 @@ def cached_escape_semantics(cache_fname, beta, plot=True,
     norm = max(n_consider) * max(n_escape)
     norm_auc = auc(n_consider, n_escape) / norm
 
-    escape_rank_prob = ss.rankdata(-data['prob'])[escape_idx]
+    escape_rank_prob = ss.rankdata(-orig_prob)[escape_idx]
     n_escape_prob = np.array([ sum(escape_rank_prob <= i + 1)
                                for i in range(max_consider) ])
     norm_auc_prob = auc(n_consider, n_escape_prob) / norm
 
-    escape_rank_change = ss.rankdata(-data['change'])[escape_idx]
+    escape_rank_change = ss.rankdata(-orig_change)[escape_idx]
     n_escape_change = np.array([ sum(escape_rank_change <= i + 1)
                                  for i in range(max_consider) ])
     norm_auc_change = auc(n_consider, n_escape_change) / norm
@@ -125,4 +132,4 @@ def cached_escape_semantics(cache_fname, beta, plot=True,
                                   alternative='two-sided')[1]))
 
 if __name__ == '__main__':
-    cached_escape_semantics(sys.argv[1], 1.)
+    cached_escape(sys.argv[1], 5.)

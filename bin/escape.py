@@ -79,7 +79,7 @@ def load_lee2019():
 
     return seq, seqs_escape
 
-def load_dingens2017(survival_cutoff=0.5):
+def load_dingens2017(survival_cutoff=0.9):
     fname = 'data/hiv/escape_dingens2017/BF520c2-Env.fasta'
     record = SeqIO.read(fname, 'fasta')
     seq = Seq.translate(str(record.seq)).rstrip('*')
@@ -107,7 +107,7 @@ def load_dingens2017(survival_cutoff=0.5):
 
     return seq, seqs_escape
 
-def load_dingens2019(survival_cutoff=0.05):
+def load_dingens2019(survival_cutoff=0.11):
     pos_map = {}
     with open('data/hiv/escape_dingens2019/BG505_to_HXB2.csv') as f:
         f.readline() # Consume header.
@@ -149,42 +149,9 @@ def load_dingens2019(survival_cutoff=0.05):
 
     return seq, seqs_escape
 
-def load_korber2020():
-    fname = 'data/cov/viprbrc_db.fasta'
-    for record in SeqIO.parse(fname, 'fasta'):
-        if 'SARS_CoV_2' in record.description:
-            seq = record.seq
-            break
-
-    muts = [
-        'D614G', 'S943P', # The big ones.
-        'L5F', 'L8V', 'V367F', 'G476S', 'G476S',
-        'H49Y', 'Y145H', 'Q239K', 'A831V',
-        'D839Y', 'D839N', 'D839E', 'P1263L'
-    ]
-
-    seqs_escape = {}
-    for mut in muts:
-        aa_orig = mut[0]
-        aa_mut = mut[-1]
-        pos = int(mut[1:-1]) - 1
-        assert(seq[pos] == aa_orig)
-        escaped = seq[:pos] + aa_mut + seq[pos + 1:]
-        assert(len(seq) == len(escaped))
-        if escaped not in seqs_escape:
-            seqs_escape[escaped] = []
-        seqs_escape[escaped].append({
-            'mutation': mut,
-            'significant': mut in { 'D614G', 'S943P' },
-        })
-
-    return seq, seqs_escape
-
 
 if __name__ == '__main__':
     load_dingens2017()
-    exit()
     load_dingens2019()
-    load_korber2020()
     load_lee2018()
     load_lee2019()
