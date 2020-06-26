@@ -26,12 +26,6 @@ def load(virus):
         train_fname = 'target/flu/clusters/all_h3.fasta'
         mut_fname = 'target/flu/mutation/mutations_h3.fa'
         anchor_id = 'Reference_Perth2009_HA_coding_sequence'
-    elif virus == 'bf520':
-        from escape import load_dingens2017
-        seq, seqs_escape = load_dingens2017()
-        train_fname = 'target/hiv/clusters/all_BF520.fasta'
-        mut_fname = 'target/hiv/mutation/mutations_bf520.fa'
-        anchor_id = 'A1.KE.1994.BF520.W14M.C2.KX168094'
     elif virus == 'bg505':
         from escape import load_dingens2019
         seq, seqs_escape = load_dingens2019()
@@ -80,8 +74,6 @@ def escape_energy(virus, vocabulary):
         energy_fname = 'target/flu/clusters/all_h1.fasta.E.txt'
     elif virus == 'h3':
         energy_fname = 'target/flu/clusters/all_h3.fasta.E.txt'
-    elif virus == 'bf520':
-        energy_fname = 'target/hiv/clusters/all_BF520.fasta.E.txt'
     elif virus == 'bg505':
         energy_fname = 'target/hiv/clusters/all_BG505.fasta.E.txt'
     else:
@@ -104,8 +96,6 @@ def escape_energy(virus, vocabulary):
 
     mut_energies, escape_idx = [], []
     for i in range(len(anchor)):
-        if virus == 'bf520' and (i < 30 or i > 690):
-            continue
         if virus == 'bg505' and (i < 29 or i > 698):
             continue
         for word in vocabulary:
@@ -129,9 +119,6 @@ def escape_evcouplings(virus, vocabulary):
     elif virus == 'h3':
         energy_fname = ('target/flu/evcouplings/flu_h3/mutate/'
                         'flu_h3_single_mutant_matrix.csv')
-    elif virus == 'bf520':
-        energy_fname = ('target/hiv/evcouplings/hiv_bf520/mutate/'
-                        'hiv_bf520_single_mutant_matrix.csv')
     elif virus == 'bg505':
         energy_fname = ('target/hiv/evcouplings/hiv_env/mutate/'
                         'hiv_env_single_mutant_matrix.csv')
@@ -159,8 +146,6 @@ def escape_evcouplings(virus, vocabulary):
     escape_idx = []
     mut_scores_epi, mut_scores_ind = [], []
     for i in range(len(anchor)):
-        if virus == 'bf520' and (i < 30 or i > 690):
-            continue
         if virus == 'bg505' and (i < 29 or i > 698):
             continue
         for word in vocabulary:
@@ -206,9 +191,6 @@ def escape_freq(virus, vocabulary):
     real_pos = 0
     for i in range(len(anchor)):
         if anchor[i] == '-':
-            continue
-        if virus == 'bf520' and (real_pos < 30 or real_pos > 690):
-            real_pos += 1
             continue
         if virus == 'bg505' and (real_pos < 29 or real_pos > 698):
             real_pos += 1
@@ -262,9 +244,6 @@ def escape_tape(virus, vocabulary, pretrained='transformer'):
     elif virus == 'h3':
         embed_fname = ('target/flu/embedding/{}_h3.npz'
                        .format(fname_prefix))
-    elif virus == 'bf520':
-        embed_fname = ('target/hiv/embedding/{}_bf520.npz'
-                       .format(fname_prefix))
     elif virus == 'bg505':
         embed_fname = ('target/hiv/embedding/{}_hiv.npz'
                        .format(fname_prefix))
@@ -297,8 +276,6 @@ def escape_tape(virus, vocabulary, pretrained='transformer'):
     anchor = anchor.replace('-', '')
     escape_idx, changes = [], []
     for i in range(len(anchor)):
-        if virus == 'bf520' and (i < 30 or i > 690):
-            continue
         if virus == 'bg505' and (i < 29 or i > 698):
             continue
         for word in vocabulary:
@@ -321,8 +298,6 @@ def escape_bepler(virus, vocabulary):
         embed_fname = 'target/flu/embedding/bepler_ssa_h1.txt'
     elif virus == 'h3':
         embed_fname = 'target/flu/embedding/bepler_ssa_h3.txt'
-    elif virus == 'bf520':
-        embed_fname = 'target/hiv/embedding/bepler_ssa_bf520.txt'
     elif virus == 'bg505':
         embed_fname = 'target/hiv/embedding/bepler_ssa_hiv.txt'
     else:
@@ -360,8 +335,6 @@ def escape_bepler(virus, vocabulary):
     anchor = anchor.replace('-', '')
     escape_idx, changes = [], []
     for i in range(len(anchor)):
-        if virus == 'bf520' and (i < 30 or i > 690):
-            continue
         if virus == 'bg505' and (i < 29 or i > 698):
             continue
         for word in vocabulary:

@@ -73,12 +73,6 @@ tape-embed transformer \
            bert-base \
            --tokenizer iupac \
            --batch_size 128
-tape-embed transformer \
-           target/hiv/mutation/mutations_clean_bf520.fasta \
-           target/hiv/embedding/tape_transformer_bf520.npz \
-           bert-base \
-           --tokenizer iupac \
-           --batch_size 128
 
 tape-embed unirep \
            target/flu/mutation/mutations_clean_h1.fasta \
@@ -95,12 +89,6 @@ tape-embed unirep \
 tape-embed unirep \
            target/hiv/mutation/mutations_clean_hiv.fasta \
            target/hiv/embedding/unirep_hiv.npz \
-           babbler-1900 \
-           --tokenizer unirep \
-           --batch_size 128
-tape-embed unirep \
-           target/hiv/mutation/mutations_clean_bf520.fasta \
-           target/hiv/embedding/unirep_bf520.npz \
            babbler-1900 \
            --tokenizer unirep \
            --batch_size 128
@@ -125,7 +113,7 @@ done
 #########################
 
 declare -a methods=("bepler" "energy" "evcouplings" "freq" "tape" "unirep")
-declare -a viruses=("h1" "h3" "bf520" "bg505")
+declare -a viruses=("h1" "h3" "bg505")
 
 for method in ${methods[@]}
 do

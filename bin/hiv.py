@@ -261,18 +261,6 @@ if __name__ == '__main__':
             prob_cutoff=0., beta=1., plot_acquisition=True,
         )
 
-        #from escape import load_dingens2017
-        #tprint('Dingens et al. 2017...')
-        #seq_to_mutate, escape_seqs = load_dingens2017()
-        #positions = [ escape_seqs[seq][0]['pos'] for seq in escape_seqs ]
-        #min_pos, max_pos = min(positions), max(positions)
-        #analyze_semantics(
-        #    args, model, vocabulary, seq_to_mutate, escape_seqs,
-        #    min_pos=min_pos, max_pos=max_pos,
-        #    prob_cutoff=0., beta=1., plot_acquisition=True,
-        #    plot_namespace='bf520'
-        #)
-
     if args.combfit:
         from combinatorial_fitness import load_haddox2018
         tprint('Haddox et al. 2018...')
