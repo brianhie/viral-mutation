@@ -125,14 +125,6 @@ def interpret_clusters(adata):
                 tprint('\t\t{}: {}'.format(val, count))
         tprint('')
 
-    from sklearn.metrics import adjusted_mutual_info_score as AMI
-    tprint('AMI, Louvain and subtype: {}'
-           .format(AMI(adata.obs['louvain'],
-                       adata.obs['Subtype'])))
-    tprint('AMI, Louvain and host species: {}'
-           .format(AMI(adata.obs['louvain'],
-                       adata.obs['Host Species'])))
-
     cluster2subtype = {}
     cluster2species = {}
     for i in range(len(adata)):
@@ -151,57 +143,27 @@ def interpret_clusters(adata):
         count = Counter(cluster2species[cluster]).most_common(1)[0][1]
         largest_pct_species.append(float(count) /
                                    len(cluster2species[cluster]))
+
+
+    for idx, pct in enumerate(largest_pct_subtype):
+        tprint('\tCluster {}, largest subtype % = {}'.format(idx, pct))
+    for idx, pct in enumerate(largest_pct_species):
+        tprint('\tCluster {}, largest species % = {}'.format(idx, pct))
+
     tprint('Purity, Louvain and subtype: {}'
            .format(np.mean(largest_pct_subtype)))
     tprint('Purity, Louvain and host species: {}'
            .format(np.mean(largest_pct_species)))
-
 
 def seq_clusters(adata):
     clusters = sorted(set(adata.obs['louvain']))
     for cluster in clusters:
         adata_cluster = adata[adata.obs['louvain'] == cluster]
         counts = Counter(adata_cluster.obs['seq'])
-        with open('target/clusters/cluster{}.fa'.format(cluster), 'w') as of:
+        with open('target/flu/clusters/cluster{}.fa'.format(cluster), 'w') as of:
             for i, (seq, count) in enumerate(counts.most_common()):
                 of.write('>cluster{}_{}_{}\n'.format(cluster, i, count))
                 of.write(seq + '\n\n')
-
-def plot_composition(adata, var):
-    years = sorted(set(adata.obs['Collection Date']))
-    vals = sorted(set(adata.obs[var]))
-
-    comps = [ [] for val in vals ]
-    norms = [ [] for val in vals ]
-    for year in years:
-        adata_year = adata[adata.obs['Collection Date'] == year]
-        val_count = { val: 0 for val in vals }
-        for n_seq, val in zip(adata_year.obs['n_seq'], adata_year.obs[var]):
-            val_count[val] += n_seq
-        comp = np.array([ val_count[val] for val in vals ], dtype=float)
-        comp_sum = float(np.sum(comp))
-        for i in range(len(comp)):
-            comps[i].append(comp[i])
-            norms[i].append(comp[i] / comp_sum)
-
-    x = np.array(range(len(years)))
-    plt.figure(figsize=(40, 10))
-    plt.stackplot(x, norms, labels=vals)
-    plt.xticks(x, [ str(year) for year in years ], rotation=45)
-    plt.legend()
-    plt.grid(b=None)
-    plt.savefig('figures/plot_composition_{}.png'.format(var), dpi=500)
-
-    plt.figure(figsize=(10, 40))
-    for i in range(len(vals)):
-        plt.subplot(len(vals), 1, i + 1)
-        plt.title(str(vals[i]))
-        plt.fill_between(x, comps[i], 0)
-        if i == len(vals) - 1:
-            plt.xticks(x, [ str(year) for year in years ], rotation=45)
-        plt.grid(b=None)
-    plt.savefig('figures/plot_composition_separate_{}.png'
-                .format(var), dpi=500)
 
 def plot_umap(adata):
     sc.tl.umap(adata, min_dist=1.)
@@ -209,19 +171,6 @@ def plot_umap(adata):
     sc.pl.umap(adata, color='Subtype', save='_flu_subtype.png')
     sc.pl.umap(adata, color='Collection Date', save='_flu_date.png')
     sc.pl.umap(adata, color='louvain', save='_flu_louvain.png')
-    sc.pl.umap(adata, color='n_seq', save='_flu_number.png',
-               s=np.log(np.array(adata.obs['n_seq']) * 100) + 1)
-
-def plot_umap_time(adata):
-    sc.pp.neighbors(adata, n_neighbors=100, use_rep='X')
-    sc.tl.umap(adata, min_dist=0.1, n_components=1)
-    adata.obsm['X_umap'] = np.hstack([
-        np.array(adata.obs['Collection Date']).reshape(-1, 1),
-        adata.obsm['X_umap']
-    ])
-    sc.pl.umap(adata, color='Host Species', save='_time_species.png')
-    sc.pl.umap(adata, color='Subtype', save='_time_subtype.png')
-    sc.pl.umap(adata, color='louvain', save='_time_louvain.png')
 
 def analyze_embedding(args, model, seqs, vocabulary):
     seqs = embed_seqs(args, model, seqs, vocabulary, use_cache=True)
@@ -262,6 +211,8 @@ def analyze_embedding(args, model, seqs, vocabulary):
     plot_umap(adata)
 
     interpret_clusters(adata)
+
+    seq_clusters(adata)
 
 def evolve(args, model, vocabulary, start_seq,
            n_timesteps=100, prob_cutoff=1e-3,

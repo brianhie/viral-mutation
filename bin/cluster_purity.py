@@ -12,8 +12,9 @@ def print_purity(metas, entries):
         largest_pct_entry = []
         for cluster in cluster2entry:
             count = Counter(cluster2entry[cluster]).most_common(1)[0][1]
-            largest_pct_entry.append(float(count) /
-                                       len(cluster2entry[cluster]))
+            pct = float(count) / len(cluster2entry[cluster])
+            largest_pct_entry.append(pct)
+            tprint('Cluster {}, largest % = {}'.format(cluster, pct))
         tprint('Purity, phylo clustering and {}: {}'
                .format(entry, np.mean(largest_pct_entry)))
 
@@ -22,7 +23,7 @@ def flu_purity():
     meta_fnames = [ 'data/influenza/ird_influenzaA_HA_allspecies_meta.tsv' ]
     metas = load_meta(meta_fnames)
 
-    cluster_fname = 'target/flu/clusters/all.clusters_0.15.txt'
+    cluster_fname = 'target/flu/clusters/all.clusters_0.12.txt'
     with open(cluster_fname) as f:
         f.readline()
         for line in f:

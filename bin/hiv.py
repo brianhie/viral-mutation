@@ -130,7 +130,7 @@ def setup(args):
     vocab_size = len(AAs) + 2
 
     model = get_model(args, seq_len, vocab_size,
-                      inference_batch_size=2100)
+                      inference_batch_size=1000)
 
     return model, seqs
 
@@ -139,23 +139,33 @@ def interpret_clusters(adata):
     for cluster in clusters:
         tprint('Cluster {}'.format(cluster))
         adata_cluster = adata[adata.obs['louvain'] == cluster]
-        for var in [ 'year', 'country', 'strain' ]:
+        for var in [ 'year', 'country', 'subtype' ]:
             tprint('\t{}:'.format(var))
             counts = Counter(adata_cluster.obs[var])
             for val, count in counts.most_common():
                 tprint('\t\t{}: {}'.format(val, count))
         tprint('')
 
+    cluster2subtype = {}
+    for i in range(len(adata)):
+        cluster = adata.obs['louvain'][i]
+        if cluster not in cluster2subtype:
+            cluster2subtype[cluster] = []
+        cluster2subtype[cluster].append(adata.obs['subtype'][i])
+    largest_pct_subtype = []
+    for cluster in cluster2subtype:
+        count = Counter(cluster2subtype[cluster]).most_common(1)[0][1]
+        pct_subtype = float(count) / len(cluster2subtype[cluster])
+        largest_pct_subtype.append(pct_subtype)
+        tprint('\tCluster {}, largest subtype % = {}'
+               .format(cluster, pct_subtype))
+    tprint('Purity, Louvain and subtype: {}'
+           .format(np.mean(largest_pct_subtype)))
+
 def plot_umap(adata):
     sc.tl.umap(adata, min_dist=1.)
-    sc.pl.umap(adata, color='year', save='_hiv_year.png')
-    sc.pl.umap(adata, color='seqlen', save='_hiv_seqlen.png')
     sc.pl.umap(adata, color='louvain', save='_hiv_louvain.png')
     sc.pl.umap(adata, color='subtype', save='_hiv_subtype.png')
-    sc.pl.umap(adata, color='country', save='_hiv_country.png')
-    sc.pl.umap(adata, color='n_seq', save='_hiv_number.png',
-               s=np.log(np.array(adata.obs['n_seq']) * 100) + 1)
-    #sc.pl.umap(adata, color='strain', save='_hiv_strain.png')
 
 def analyze_embedding(args, model, seqs, vocabulary):
     sorted_seqs = np.array([ str(s) for s in sorted(seqs.keys()) ])
