@@ -15,6 +15,10 @@ def load(virus):
         escape_fname = ('target/hiv/semantics/cache/'
                         'analyze_semantics_hiv_bilstm_512.txt')
         region_fname = 'data/hiv/bg505_regions.txt'
+    elif virus == 'sarscov2':
+        escape_fname = ('target/sarscov2/semantics/cache/'
+                        'analyze_semantics_sarscov2_bilstm_512.txt')
+        region_fname = 'data/cov/sarscov2_regions.txt'
     else:
         raise ValueError('Virus {} not supported'.format(virus))
     return escape_fname, region_fname
@@ -67,18 +71,12 @@ def regional_escape(virus, beta=1., n_permutations=100000):
             pos2scores[pos] = []
         pos2scores[pos].append(acquisition)
 
-    # Plot each region in bar plot.
-
-    plot_data = pd.DataFrame(plot_data, columns=[ 'region', 'score' ])
-    plt.figure()
-    sns.barplot(data=plot_data, x='region', y='score')
-    plt.savefig('figures/regional_escape_{}.svg'.format(virus))
-
     # Compute permutation-based P-value for each region.
 
     seq_start = min(df_all['pos'])
     seq_end = max(df_all['pos'])
     all_pos = list(range(seq_start, seq_end + 1))
+    plot_data = []
 
     for name in name2escape:
         real_score = np.mean(name2escape[name])
@@ -98,20 +96,35 @@ def regional_escape(virus, beta=1., n_permutations=100000):
                 (n_permutations)
         p_val = min(p_val * len(name2escape) * 2, 1.)
         if p_val == 0:
-            tprint('{}, P < {}'.format(name, 1. / n_permutations))
+            p_val = 1. / n_permutations
+            tprint('{}, P < {}'.format(name, p_val))
         else:
             tprint('{}, P = {}'.format(name, p_val))
+        plot_data.append([ name, -np.log10(p_val), 'enriched' ])
 
         tprint('Depleted for escapes:')
         p_val = (sum(null_distribution <= real_score)) / \
                 (n_permutations)
         p_val = min(p_val * len(name2escape) * 2, 1.)
         if p_val == 0:
-            tprint('{}, P < {}'.format(name, 1. / n_permutations))
+            p_val = 1. / n_permutations
+            tprint('{}, P < {}'.format(name, p_val))
         else:
             tprint('{}, P = {}'.format(name, p_val))
+        plot_data.append([ name, -np.log10(p_val), 'depleted' ])
 
         tprint('')
+
+    # Plot each region in bar plot.
+
+    plot_data = pd.DataFrame(plot_data,
+                             columns=[ 'region', 'score', 'direction' ])
+    plt.figure()
+    sns.barplot(data=plot_data, x='region', y='score', hue='direction',
+                order=sorted(set(plot_data['region'])))
+    plt.axhline(y=-np.log10(0.01), color='gray', linestyle='--')
+    plt.xticks(rotation=60)
+    plt.savefig('figures/regional_escape_{}.svg'.format(virus))
 
 if __name__ == '__main__':
     virus = sys.argv[1]

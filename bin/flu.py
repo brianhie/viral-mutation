@@ -67,8 +67,6 @@ def process(fnames, meta_fnames):
         for record in SeqIO.parse(fname, 'fasta'):
             if 'Reference_Perth2009_HA_coding_sequence' in record.description:
                 continue
-            if str(record.seq).count('X') > 10:
-                continue
             if record.seq not in seqs:
                 seqs[record.seq] = []
             accession = record.description.split('|')[0].split(':')[1]
@@ -271,10 +269,10 @@ if __name__ == '__main__':
             raise ValueError('Model must be trained or loaded '
                              'from checkpoint.')
 
-        from escape import load_lee2018, load_lee2019
+        from escape import load_doud2018, load_lee2019
 
         tprint('Lee et al. 2018...')
-        seq_to_mutate, escape_seqs = load_lee2018()
+        seq_to_mutate, escape_seqs = load_doud2018()
         analyze_semantics(args, model, vocabulary, seq_to_mutate, escape_seqs,
                           prob_cutoff=0., beta=1., plot_acquisition=True,
                           plot_namespace='flu_h1')

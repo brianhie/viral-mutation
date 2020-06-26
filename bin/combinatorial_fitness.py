@@ -6,7 +6,7 @@ import numpy as np
 def load_doud2016():
     strain = 'h1'
 
-    fname = 'data/influenza/escape_lee2018/WSN1933_H1_HA.fa'
+    fname = 'data/influenza/escape_doud2018/WSN1933_H1_HA.fa'
     wt_seq = SeqIO.read(fname, 'fasta').seq
 
     seqs_fitness = {}

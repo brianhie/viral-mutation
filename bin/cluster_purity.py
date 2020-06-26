@@ -23,7 +23,7 @@ def flu_purity():
     meta_fnames = [ 'data/influenza/ird_influenzaA_HA_allspecies_meta.tsv' ]
     metas = load_meta(meta_fnames)
 
-    cluster_fname = 'target/flu/clusters/all.clusters_0.12.txt'
+    cluster_fname = 'target/flu/clusters/all.clusters_0.117.txt'
     with open(cluster_fname) as f:
         f.readline()
         for line in f:
@@ -43,7 +43,7 @@ def hiv_purity():
     metas = { accession.split('.')[-1]: metas[accession]
               for accession in metas }
 
-    cluster_fname = 'target/hiv/clusters/all.clusters_0.30.txt'
+    cluster_fname = 'target/hiv/clusters/all.clusters_0.445.txt'
     with open(cluster_fname) as f:
         f.readline()
         for line in f:

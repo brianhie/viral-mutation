@@ -1,14 +1,14 @@
 from utils import Seq, SeqIO
 
-def load_lee2018(survival_cutoff=0.05):
+def load_doud2018(survival_cutoff=0.05):
     pos_map = {}
-    with open('data/influenza/escape_lee2018/pos_map.csv') as f:
+    with open('data/influenza/escape_doud2018/pos_map.csv') as f:
         f.readline() # Consume header.
         for line in f:
            fields = line.rstrip().split(',')
            pos_map[fields[1]] = int(fields[0]) - 1
 
-    fname = 'data/influenza/escape_lee2018/WSN1933_H1_HA.fa'
+    fname = 'data/influenza/escape_doud2018/WSN1933_H1_HA.fa'
     seqs = []
     for record in SeqIO.parse(fname, 'fasta'):
         seq = record.seq
@@ -19,7 +19,7 @@ def load_lee2018(survival_cutoff=0.05):
         'C179', 'FI6v3', 'H17L10', 'H17L19', 'H17L7', 'S139',
     ]
     for antibody in antibodies:
-        fname = ('data/influenza/escape_lee2018/' +
+        fname = ('data/influenza/escape_doud2018/' +
                  'medianfracsurvivefiles/' +
                  'antibody_{}_median.csv'.format(antibody))
         with open(fname) as f:
@@ -123,5 +123,5 @@ def load_dingens2019(survival_cutoff=0.11):
 
 if __name__ == '__main__':
     load_dingens2019()
-    load_lee2018()
+    load_doud2018()
     load_lee2019()

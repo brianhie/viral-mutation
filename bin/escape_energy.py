@@ -14,8 +14,8 @@ def parse_args():
 
 def load(virus):
     if virus == 'h1':
-        from escape import load_lee2018
-        seq, seqs_escape = load_lee2018()
+        from escape import load_doud2018
+        seq, seqs_escape = load_doud2018()
         train_fname = 'target/flu/clusters/all_h1.fasta'
         mut_fname = 'target/flu/mutation/mutations_h1.fa'
         anchor_id = ('gb:LC333185|ncbiId:BBB04702.1|UniProtKB:-N/A-|'
