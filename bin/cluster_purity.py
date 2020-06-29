@@ -2,6 +2,7 @@ from utils import *
 
 def print_purity(metas, entries):
     for entry in entries:
+        tprint('Calculating purity of {}'.format(entry))
         cluster2entry = {}
         for accession in metas:
             meta = metas[accession]

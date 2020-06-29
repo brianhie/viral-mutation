@@ -12,7 +12,7 @@ def parse_args():
                         help='Model namespace')
     parser.add_argument('--dim', type=int, default=256,
                         help='Embedding dimension')
-    parser.add_argument('--batch-size', type=int, default=1000,
+    parser.add_argument('--batch-size', type=int, default=500,
                         help='Training minibatch size')
     parser.add_argument('--n-epochs', type=int, default=20,
                         help='Number of training epochs')
@@ -87,10 +87,12 @@ def process(fnames):
         if fname == 'data/cov/viprbrc_db.fasta':
             from cov import parse_meta as parse_viprbrc
         for record in SeqIO.parse(fname, 'fasta'):
-            if len(record.seq) < 1250 or \
-               len(record.seq) > 1300:
+            if len(record.seq) < 1000:
                 continue
-            if str(record.seq).count('X') > 10:
+            #if len(record.seq) < 1250 or \
+            #   len(record.seq) > 1300:
+            #    continue
+            if str(record.seq).count('X') > 0:
                 continue
             if record.seq not in seqs:
                 seqs[record.seq] = []
@@ -236,11 +238,12 @@ if __name__ == '__main__':
             raise ValueError('Model must be trained or loaded '
                              'from checkpoint.')
 
-        seq_to_mutate = str(SeqIO.read('data/cov/cov2_spike_wt.fasta',
-                                       'fasta').seq)
-        analyze_semantics(args, model, vocabulary, seq_to_mutate, {},
-                          prob_cutoff=0, beta=1.,
-                          plot_acquisition=True,)
+        from escape import load_baum2020
+        tprint('Baum et al. 2020...')
+        seq_to_mutate, seqs_escape = load_baum2020()
+        analyze_semantics(args, model, vocabulary,
+                          seq_to_mutate, seqs_escape, comb_batch=10000,
+                          prob_cutoff=0, beta=1., plot_acquisition=True,)
 
     if args.combfit:
         from combinatorial_fitness import load_starr2020

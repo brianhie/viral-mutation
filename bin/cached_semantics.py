@@ -8,6 +8,7 @@ def cached_escape(cache_fname, beta, plot=True, namespace='semantics'):
         f.readline()
         for line in f:
             fields = line.rstrip().split('\t')
+            pos = int(fields[0])
             prob.append(float(fields[3]))
             change.append(float(fields[4]))
             viable_idx.append(fields[5] == 'True')

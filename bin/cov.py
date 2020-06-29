@@ -51,11 +51,14 @@ def parse_meta(entry):
         country = 'NA'
         continent = 'NA'
 
+    from mammals import species2group
+
     meta = {
         'prot_name': fields[1],
         'strain': fields[5],
         'date': date,
         'host': fields[8],
+        'group': species2group[fields[8]],
         'country': country,
         'continent': continent,
     }
@@ -123,30 +126,10 @@ def interpret_clusters(adata):
                 tprint('\t\t{}: {}'.format(val, count))
         tprint('')
 
-def seq_clusters(adata):
-    clusters = sorted(set(adata.obs['louvain']))
-    for cluster in clusters:
-        adata_cluster = adata[adata.obs['louvain'] == cluster]
-        counts = Counter(adata_cluster.obs['seq'])
-        with open('target/clusters/cluster{}.fa'.format(cluster), 'w') as of:
-            for i, (seq, count) in enumerate(counts.most_common()):
-                of.write('>cluster{}_{}_{}\n'.format(cluster, i, count))
-                of.write(seq + '\n\n')
-
-def plot_umap(adata, namespace='cov'):
-    sc.pl.umap(adata, color='date',
-               save='_{}_date.png'.format(namespace))
-    sc.pl.umap(adata, color='country',
-               save='_{}_country.png'.format(namespace))
-    sc.pl.umap(adata, color='host',
-               save='_{}_host.png'.format(namespace))
-    sc.pl.umap(adata, color='prot_name',
-               save='_{}_prot.png'.format(namespace))
-    sc.pl.umap(adata, color='louvain',
-               save='_{}_louvain.png'.format(namespace))
-    sc.pl.umap(adata, color='n_seq',
-               save='_{}_number.png'.format(namespace),
-               s=np.log(np.array(adata.obs['n_seq']) * 100) + 1)
+def plot_umap(adata, categories, namespace='cov'):
+    for category in categories:
+        sc.pl.umap(adata, color=category,
+                   save='_{}_{}.png'.format(namespace, category))
 
 def analyze_embedding(args, model, seqs, vocabulary):
     seqs = embed_seqs(args, model, seqs, vocabulary, use_cache=True)
@@ -173,17 +156,17 @@ def analyze_embedding(args, model, seqs, vocabulary):
     for key in obs:
         adata.obs[key] = obs[key]
 
-    sc.pp.neighbors(adata, n_neighbors=100, use_rep='X')
+    sc.pp.neighbors(adata, n_neighbors=20, use_rep='X')
     sc.tl.louvain(adata, resolution=1.)
     sc.tl.umap(adata, min_dist=1.)
 
     sc.set_figure_params(dpi_save=500)
-    plot_umap(adata)
+    plot_umap(adata, [ 'host', 'group', 'continent' ])
 
     interpret_clusters(adata)
-    #seq_clusters(adata)
 
-    plot_umap(adata[adata.obs['louvain'] == '7'],
+    plot_umap(adata[adata.obs['louvain'] == '19'],
+              [ 'host', 'group', 'country' ],
               namespace='cov7')
 
 if __name__ == '__main__':
@@ -224,8 +207,19 @@ if __name__ == '__main__':
             raise ValueError('Model must be trained or loaded '
                              'from checkpoint.')
 
-        from escape import load_korber2020
+        from escape import load_baum2020
+        tprint('Baum et al. 2020...')
+        seq_to_mutate, seqs_escape = load_baum2020()
+        analyze_semantics(args, model, vocabulary,
+                          seq_to_mutate, seqs_escape,
+                          prob_cutoff=0, beta=1., plot_acquisition=True,)
 
-        seq_to_mutate, escape_seqs = load_korber2020()
-        analyze_semantics(args, model, vocabulary, seq_to_mutate, escape_seqs,
-                          prob_cutoff=1e-10, beta=1., plot_acquisition=True,)
+    if args.combfit:
+        from combinatorial_fitness import load_starr2020
+        tprint('Starr et al. 2020...')
+        wt_seqs, seqs_fitness = load_starr2020()
+        strains = sorted(wt_seqs.keys())
+        for strain in strains:
+            analyze_comb_fitness(args, model, vocabulary,
+                                 strain, wt_seqs[strain], seqs_fitness,
+                                 comb_batch=10000, prob_cutoff=0., beta=1.)

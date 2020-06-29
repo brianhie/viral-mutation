@@ -67,6 +67,8 @@ def process(fnames, meta_fnames):
         for record in SeqIO.parse(fname, 'fasta'):
             if 'Reference_Perth2009_HA_coding_sequence' in record.description:
                 continue
+            if str(record.seq).count('X') > 10:
+                continue
             if record.seq not in seqs:
                 seqs[record.seq] = []
             accession = record.description.split('|')[0].split(':')[1]
@@ -163,12 +165,16 @@ def seq_clusters(adata):
                 of.write('>cluster{}_{}_{}\n'.format(cluster, i, count))
                 of.write(seq + '\n\n')
 
-def plot_umap(adata):
+def plot_umap(adata, namespace='flu'):
     sc.tl.umap(adata, min_dist=1.)
-    sc.pl.umap(adata, color='Host Species', save='_flu_species.png')
-    sc.pl.umap(adata, color='Subtype', save='_flu_subtype.png')
-    sc.pl.umap(adata, color='Collection Date', save='_flu_date.png')
-    sc.pl.umap(adata, color='louvain', save='_flu_louvain.png')
+    sc.pl.umap(adata, color='Host Species',
+               save='_{}_species.png'.format(namespace))
+    sc.pl.umap(adata, color='Subtype',
+               save='_{}_subtype.png'.format(namespace))
+    sc.pl.umap(adata, color='Collection Date',
+               save='_{}_date.png'.format(namespace))
+    sc.pl.umap(adata, color='louvain',
+               save='_{}_louvain.png'.format(namespace))
 
 def analyze_embedding(args, model, seqs, vocabulary):
     seqs = embed_seqs(args, model, seqs, vocabulary, use_cache=True)
@@ -211,6 +217,9 @@ def analyze_embedding(args, model, seqs, vocabulary):
     interpret_clusters(adata)
 
     seq_clusters(adata)
+
+    plot_umap(adata[adata.obs['louvain'] == '30'],
+              namespace='flu1918')
 
 def evolve(args, model, vocabulary, start_seq,
            n_timesteps=100, prob_cutoff=1e-3,

@@ -121,7 +121,35 @@ def load_dingens2019(survival_cutoff=0.11):
 
     return seq, seqs_escape
 
+def load_baum2020():
+    seq = SeqIO.read('data/cov/cov2_spike_wt.fasta', 'fasta').seq
+
+    muts = [
+        'K417E', 'K444Q', 'V445A', 'N450D', 'Y453F', 'L455F',
+        'E484K', 'G485D', 'F486V', 'F490P', 'Q493K', 'H655Y',
+        'R682Q', 'R685S', 'V687G', 'G769E', 'Q779K', 'V1128A',
+    ]
+
+    seqs_escape = {}
+    for mut in muts:
+        aa_orig = mut[0]
+        aa_mut = mut[-1]
+        pos = int(mut[1:-1]) - 1
+        assert(seq[pos] == aa_orig)
+        escaped = seq[:pos] + aa_mut + seq[pos + 1:]
+        assert(len(seq) == len(escaped))
+        if escaped not in seqs_escape:
+            seqs_escape[escaped] = []
+        seqs_escape[escaped].append({
+            'mutation': mut,
+            'significant': True,
+        })
+
+    return seq, seqs_escape
+
 if __name__ == '__main__':
+    load_baum2020()
+    exit()
     load_dingens2019()
     load_doud2018()
     load_lee2019()

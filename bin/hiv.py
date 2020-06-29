@@ -85,6 +85,8 @@ def process(args, fnames, meta_fnames):
             if args.namespace == 'hiva' and \
                (not meta['subtype'].startswith('A')):
                 continue
+            if 'X' in record.seq:
+                continue
             if record.seq not in seqs:
                 seqs[record.seq] = []
             seqs[record.seq].append(meta)

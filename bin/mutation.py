@@ -239,6 +239,7 @@ def analyze_comb_fitness(
     seqs = sorted(seqs_fitness.keys())
     n_batches = math.ceil(float(len(seqs)) / comb_batch)
 
+    data = []
     for batchi in range(n_batches):
         start = batchi * comb_batch
         end = (batchi + 1) * comb_batch
@@ -253,7 +254,6 @@ def analyze_comb_fitness(
             use_cache=False, verbose=False
         )
 
-        data = []
         for mut_seq in seqs_fitness_batch:
             assert(len(seqs_fitness_batch[mut_seq]) == 1)
             meta = seqs_fitness_batch[mut_seq][0]
@@ -322,7 +322,8 @@ def analyze_comb_fitness(
 
 def analyze_semantics(args, model, vocabulary, seq_to_mutate, escape_seqs,
                       min_pos=None, max_pos=None, prob_cutoff=0., beta=1.,
-                      plot_acquisition=True, plot_namespace=None, verbose=True):
+                      comb_batch=None, plot_acquisition=True,
+                      plot_namespace=None, verbose=True):
     if plot_acquisition:
         dirname = ('target/{}/semantics/cache'.format(args.namespace))
         mkdir_p(dirname)
@@ -341,14 +342,15 @@ def analyze_semantics(args, model, vocabulary, seq_to_mutate, escape_seqs,
     word_pos_prob = {}
     for i in range(min_pos, max_pos + 1):
         for word in vocabulary:
+            if seq_to_mutate[i] == word:
+                continue
             word_idx = vocabulary[word]
             prob = y_pred[i + 1, word_idx]
             word_pos_prob[(word, i)] = prob
 
-    prob_sorted = sorted(word_pos_prob.items(), key=lambda x: -x[1])
     prob_seqs = { seq_to_mutate: [ { 'word': None, 'pos': None } ] }
     seq_prob = {}
-    for (word, pos), prob in prob_sorted:
+    for (word, pos), prob in word_pos_prob.items():
         mutable = seq_to_mutate[:pos] + word + seq_to_mutate[pos + 1:]
         seq_prob[mutable] = prob
         if prob >= prob_cutoff:
@@ -370,17 +372,31 @@ def analyze_semantics(args, model, vocabulary, seq_to_mutate, escape_seqs,
                 except ValueError:
                     of.write('NA\n')
 
-    prob_seqs = embed_seqs(args, model, prob_seqs, vocabulary,
-                           use_cache=False, verbose=verbose)
-    base_embedding = prob_seqs[seq_to_mutate][0]['embedding']
+    base_embedding = embed_seqs(
+        args, model, { seq_to_mutate: [ {} ] }, vocabulary,
+        use_cache=False, verbose=False
+    )[seq_to_mutate][0]['embedding']
+
+    if comb_batch is None:
+        comb_batch = len(seqs)
+    n_batches = math.ceil(float(len(seqs)) / comb_batch)
+
     seq_change = {}
-    for seq in seqs:
-        if seq in prob_seqs:
-            embedding = prob_seqs[seq][0]['embedding']
-            # L1 distance between embedding vectors.
-            seq_change[seq] = abs(base_embedding - embedding).sum()
-        else:
-            seq_change[seq] = 0
+    for batchi in range(n_batches):
+        start = batchi * comb_batch
+        end = (batchi + 1) * comb_batch
+        prob_seqs_batch = {
+            seq: prob_seqs[seq] for seq in seqs[start:end]
+            if seq != seq_to_mutate
+        }
+        prob_seqs_batch = embed_seqs(
+            args, model, prob_seqs_batch, vocabulary,
+            use_cache=False, verbose=False
+        )
+        for mut_seq in prob_seqs_batch:
+            meta = prob_seqs_batch[mut_seq][0]
+            sem_change = abs(base_embedding - meta['embedding']).sum()
+            seq_change[mut_seq] = sem_change
 
     cache_fname = dirname + (
         '/analyze_semantics_{}_{}_{}.txt'
