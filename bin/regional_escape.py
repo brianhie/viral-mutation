@@ -96,7 +96,6 @@ def regional_escape(virus, beta=1., n_permutations=100000):
         tprint('Enriched for escapes:')
         p_val = (sum(null_distribution >= real_score)) / \
                 (n_permutations)
-        p_val = min(p_val * len(name2escape) * 2, 1.)
         if p_val == 0:
             p_val = 1. / n_permutations
             tprint('{}, P < {}'.format(name, p_val))
@@ -107,7 +106,6 @@ def regional_escape(virus, beta=1., n_permutations=100000):
         tprint('Depleted for escapes:')
         p_val = (sum(null_distribution <= real_score)) / \
                 (n_permutations)
-        p_val = min(p_val * len(name2escape) * 2, 1.)
         if p_val == 0:
             p_val = 1. / n_permutations
             tprint('{}, P < {}'.format(name, p_val))
@@ -124,7 +122,8 @@ def regional_escape(virus, beta=1., n_permutations=100000):
     plt.figure()
     sns.barplot(data=plot_data, x='region', y='score', hue='direction',
                 order=sorted(set(plot_data['region'])))
-    plt.axhline(y=-np.log10(0.01), color='gray', linestyle='--')
+    fdr = 0.05 / len(sorted(set(plot_data['region'])))
+    plt.axhline(y=-np.log10(fdr), color='gray', linestyle='--')
     plt.xticks(rotation=60)
     plt.savefig('figures/regional_escape_{}.svg'.format(virus))
 

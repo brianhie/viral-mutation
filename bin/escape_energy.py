@@ -32,6 +32,12 @@ def load(virus):
         train_fname = 'target/hiv/clusters/all_BG505.fasta'
         mut_fname = 'target/hiv/mutation/mutations_hiv.fa'
         anchor_id = 'A1.KE.-.BG505_W6M_ENV_C2.DQ208458'
+    elif virus == 'sarscov2':
+        from escape import load_baum2020
+        seq, seqs_escape = load_baum2020()
+        train_fname = 'TODO'
+        mut_fname = 'TODO'
+        anchor_id = 'TODO'
     else:
         raise ValueError('invalid option {}'.format(virus))
 
@@ -76,6 +82,8 @@ def escape_energy(virus, vocabulary):
         energy_fname = 'target/flu/clusters/all_h3.fasta.E.txt'
     elif virus == 'bg505':
         energy_fname = 'target/hiv/clusters/all_BG505.fasta.E.txt'
+    elif virus == 'sarscov2':
+        energy_fname = 'TODO'
     else:
         raise ValueError('invalid option {}'.format(virus))
 
@@ -122,6 +130,8 @@ def escape_evcouplings(virus, vocabulary):
     elif virus == 'bg505':
         energy_fname = ('target/hiv/evcouplings/hiv_env/mutate/'
                         'hiv_env_single_mutant_matrix.csv')
+    elif virus == 'sarscov2':
+        energy_fname = ('TODO')
     else:
         raise ValueError('invalid option {}'.format(virus))
 
@@ -247,6 +257,9 @@ def escape_tape(virus, vocabulary, pretrained='transformer'):
     elif virus == 'bg505':
         embed_fname = ('target/hiv/embedding/{}_hiv.npz'
                        .format(fname_prefix))
+    elif virus == 'sarscov2':
+        embed_fname = ('target/sarscov2/embedding/{}_sarscov2.npz'
+                       .format(fname_prefix))
     else:
         raise ValueError('invalid option {}'.format(virus))
 
@@ -300,6 +313,8 @@ def escape_bepler(virus, vocabulary):
         embed_fname = 'target/flu/embedding/bepler_ssa_h3.txt'
     elif virus == 'bg505':
         embed_fname = 'target/hiv/embedding/bepler_ssa_hiv.txt'
+    elif virus == 'sarscov2':
+        embed_fname = 'target/sarscov2/embedding/bepler_ssa_sarscov2.txt'
     else:
         raise ValueError('invalid option {}'.format(virus))
 
@@ -352,22 +367,11 @@ def escape_bepler(virus, vocabulary):
 if __name__ == '__main__':
     args = parse_args()
 
-    if args.virus == 'hiv':
-        AAs = [
-            'A', 'R', 'N', 'D', 'C', 'Q', 'E', 'G', 'H',
-            'I', 'L', 'K', 'M', 'F', 'P', 'S', 'T', 'W',
-            'Y', 'V', 'X', 'Z', 'J', 'U', 'B',
-        ]
-        vocabulary = { aa: idx + 1 for idx, aa in enumerate(sorted(AAs))
-                       if aa not in { 'B', 'Z', 'X', 'J' } }
-    else:
-        AAs = [
-            'A', 'R', 'N', 'D', 'C', 'Q', 'E', 'G', 'H',
-            'I', 'L', 'K', 'M', 'F', 'P', 'S', 'T', 'W',
-            'Y', 'V', 'X', 'Z', 'J', 'U', 'B', 'Z'
-        ]
-        vocabulary = { aa: idx + 1 for idx, aa in enumerate(sorted(AAs))
-                       if aa not in { 'B', 'Z', 'X', 'J' } }
+    vocabulary = [
+        'A', 'R', 'N', 'D', 'C', 'Q', 'E', 'G', 'H',
+        'I', 'L', 'K', 'M', 'F', 'P', 'S', 'T', 'W',
+        'Y', 'V', 'U',
+    ]
 
     if args.method == 'bepler':
         escape_bepler(args.virus, vocabulary)

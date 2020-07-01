@@ -94,3 +94,13 @@ if __name__ == '__main__':
     mutants, mutant_names = create_mutants(anchor)
     write_mutants(mutants, mutant_names,
                   'target/hiv/mutation/mutations_bf520.fa')
+
+    print('SARS-CoV-2...')
+    anchor = msa_subset(
+        'TODO'
+        'target/sarscov2/clusters/all_sarscov2.fasta',
+        'TODO', 15
+    )
+    mutants, mutant_names = create_mutants(anchor)
+    write_mutants(mutants, mutant_names,
+                  'target/sarscov2/mutation/mutations_sarscov2.fa')

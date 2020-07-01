@@ -1,6 +1,6 @@
-for epoch in {09..20}
+for epoch in {02..20}
 do
-    CHECK_FNAME=target/cov/checkpoints.old/train_all/bilstm/bilstm_256-09.hdf5
+    CHECK_FNAME=target/covall/checkpoints/bilstm/bilstm_512-$epoch.hdf5
     echo "Considering "$CHECK_FNAME"..."
-    python bin/sarscov2.py bilstm --dim 256 --checkpoint $CHECK_FNAME --semantics --namespace covold
+    CUDA_VISIBLE_DEVICES=2 python bin/sarscov2.py bilstm --dim 512 --checkpoint $CHECK_FNAME --semantics --namespace covall
 done

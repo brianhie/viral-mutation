@@ -9,6 +9,11 @@
     data/hiv/HIV-1_env_samelen.fa \
     > target/hiv/clusters/all.fasta
 
+/usr/local/bin/mafft \
+    --thread 40 --auto --inputorder \
+    data/cov/HIV-1_env_samelen.fa \
+    > target/hiv/clusters/all.fasta
+
 python bin/benchmark_subset.py
 
 ##########################
@@ -52,8 +57,8 @@ sed 's/-//g' target/flu/mutation/mutations_h3.fa > \
     target/flu/mutation/mutations_clean_h3.fasta
 sed 's/-//g' target/hiv/mutation/mutations_hiv.fa > \
     target/hiv/mutation/mutations_clean_hiv.fasta
-sed 's/-//g' target/hiv/mutation/mutations_bf520.fa > \
-    target/hiv/mutation/mutations_clean_bf520.fasta
+sed 's/-//g' target/sarscov2/mutation/mutations_sarscov2.fa > \
+    target/sarscov2/mutation/mutations_clean_sarscov2.fasta
 
 tape-embed transformer \
            target/flu/mutation/mutations_clean_h1.fasta \
@@ -73,6 +78,12 @@ tape-embed transformer \
            bert-base \
            --tokenizer iupac \
            --batch_size 128
+tape-embed transformer \
+           target/sarscov2/mutation/mutations_clean_sarscov2.fasta \
+           target/sarscov2/embedding/tape_transformer_sarscov2.npz \
+           bert-base \
+           --tokenizer iupac \
+           --batch_size 64
 
 tape-embed unirep \
            target/flu/mutation/mutations_clean_h1.fasta \
@@ -92,6 +103,12 @@ tape-embed unirep \
            babbler-1900 \
            --tokenizer unirep \
            --batch_size 128
+tape-embed unirep \
+           target/sarscov2/mutation/mutations_clean_sarscov2.fasta \
+           target/sarscov2/embedding/unirep_sarscov2.npz \
+           babbler-1900 \
+           --tokenizer unirep \
+           --batch_size 64
 
 ##########################
 ## Fitness calculations ##
@@ -113,7 +130,7 @@ done
 #########################
 
 declare -a methods=("bepler" "energy" "evcouplings" "freq" "tape" "unirep")
-declare -a viruses=("h1" "h3" "bg505")
+declare -a viruses=("h1" "h3" "bg505" "sarscov2")
 
 for method in ${methods[@]}
 do

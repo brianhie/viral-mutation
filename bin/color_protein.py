@@ -31,7 +31,7 @@ def generate_pymol_colors(ofname, df, idx_pdb):
             acq_scaled = scale(acq_mean, acq_min, acq_max)
             write_color(chain, resi, acq_scaled, of_mean)
 
-def load_data(virus, beta=20.):
+def load_data(virus, beta=1.):
     from regional_escape import load
     escape_fname, region_fname = load(virus)
 
@@ -112,8 +112,6 @@ def color_dingens2018():
             pos = str(idx + 1)
         idx_pdb[idx] = ('G', pos)
 
-    cmap = matplotlib.cm.get_cmap('viridis')
-
     dirname = 'target/hiv/structure'
     mkdir_p(dirname)
     ofname = dirname + '/pdb_color_gp120_mean.pml'
@@ -134,7 +132,6 @@ def color_starr2020():
 
 if __name__ == '__main__':
     color_starr2020()
-    exit()
     color_doud2018()
     color_lee2019()
     color_dingens2018()

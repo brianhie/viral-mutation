@@ -35,6 +35,35 @@ def parse_args():
     args = parser.parse_args()
     return args
 
+def parse_viprbrc(entry):
+    fields = entry.split('|')
+    if fields[7] == 'NA':
+        date = None
+    else:
+        date = fields[7].split('/')[0]
+        date = dparse(date.replace('_', '-'))
+
+    country = fields[9]
+    from locations import country2continent
+    if country in country2continent:
+        continent = country2continent[country]
+    else:
+        country = 'NA'
+        continent = 'NA'
+
+    from mammals import species2group
+
+    meta = {
+        'prot_name': fields[1],
+        'strain': fields[5],
+        'date': date,
+        'host': fields[8],
+        'group': species2group[fields[8]],
+        'country': country,
+        'continent': continent,
+    }
+    return meta
+
 def parse_nih(entry):
     fields = entry.split('|')
 
@@ -49,6 +78,7 @@ def parse_nih(entry):
     meta = {
         'prot_id': fields[0].rstrip(),
         'host': 'human',
+        'group': 'human',
         'country': country,
         'continent': continent,
     }
@@ -74,8 +104,11 @@ def parse_gisaid(entry):
             country = 'NA'
             continent = 'NA'
 
+    from mammals import species2group
+
     meta = {
         'host': host,
+        'group': species2group[host],
         'country': country,
         'continent': continent,
     }
@@ -85,13 +118,10 @@ def process(fnames):
     seqs = {}
     for fname in fnames:
         if fname == 'data/cov/viprbrc_db.fasta':
-            from cov import parse_meta as parse_viprbrc
+            from cov import parse_meta as
         for record in SeqIO.parse(fname, 'fasta'):
             if len(record.seq) < 1000:
                 continue
-            #if len(record.seq) < 1250 or \
-            #   len(record.seq) > 1300:
-            #    continue
             if str(record.seq).count('X') > 0:
                 continue
             if record.seq not in seqs:
@@ -130,7 +160,7 @@ def setup(args):
     vocab_size = len(AAs) + 2
 
     model = get_model(args, seq_len, vocab_size,
-                      inference_batch_size=1500)
+                      inference_batch_size=1200)
 
     return model, seqs
 

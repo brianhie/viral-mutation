@@ -166,9 +166,20 @@ def seq_clusters(adata):
                 of.write(seq + '\n\n')
 
 def plot_umap(adata, namespace='flu'):
-    sc.tl.umap(adata, min_dist=1.)
-    sc.pl.umap(adata, color='Host Species',
-               save='_{}_species.png'.format(namespace))
+    if namespace == 'flu1918':
+        plt.figure()
+        ax = plt.gca()
+        sc.pl.umap(adata, color='Host Species', ax=ax, size=20)
+        ratio = 0.3
+        xleft, xright = ax.get_xlim()
+        ybottom, ytop = ax.get_ylim()
+        ax.set_aspect(abs((xright-xleft)/(ybottom-ytop))*ratio)
+        plt.savefig('figures/umap_{}_species.png'.format(namespace))
+        plt.close()
+    else:
+        sc.pl.umap(adata, color='Host Species',
+                   save='_{}_species.png'.format(namespace))
+
     sc.pl.umap(adata, color='Subtype',
                save='_{}_subtype.png'.format(namespace))
     sc.pl.umap(adata, color='Collection Date',
@@ -212,14 +223,15 @@ def analyze_embedding(args, model, seqs, vocabulary):
     sc.tl.louvain(adata, resolution=1.)
 
     sc.set_figure_params(dpi_save=500)
+
+    sc.tl.umap(adata, min_dist=1.)
     plot_umap(adata)
-
-    interpret_clusters(adata)
-
-    seq_clusters(adata)
-
     plot_umap(adata[adata.obs['louvain'] == '30'],
               namespace='flu1918')
+
+    #interpret_clusters(adata)
+
+    #seq_clusters(adata)
 
 def evolve(args, model, vocabulary, start_seq,
            n_timesteps=100, prob_cutoff=1e-3,
