@@ -62,7 +62,8 @@ species2group = {
     'canine': 'canine',
     'cat': 'felid',
     'env': 'unknown',
+    'human': 'human',
     'mink': 'mustelid',
-    'pangoline': 'pangolin',
+    'pangolin': 'pangolin',
     'tiger': 'felid',
 }

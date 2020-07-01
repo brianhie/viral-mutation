@@ -29,8 +29,8 @@ def plot_cscs_fitness(df):
     plt.savefig('figures/fitness_barplot_cscs.svg')
 
 def plot_fitness_benchmark(df):
-    model_order = [ 'mafft', 'MPF/BML', 'EVcouplings (indep)',
-                    'EVcouplings (epist)', 'Grammaticality' ]
+    model_order = [ 'mafft', 'EVcouplings (indep)', 'EVcouplings (epist)',
+                    'Grammaticality' ]
     for strain in [ 'WSN33', 'BF520', 'BG505' ]:
         df_subset = df[(df['strain'] == strain) &
                        (df['model'] != 'Semantic change')]

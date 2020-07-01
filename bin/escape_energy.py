@@ -35,9 +35,9 @@ def load(virus):
     elif virus == 'sarscov2':
         from escape import load_baum2020
         seq, seqs_escape = load_baum2020()
-        train_fname = 'TODO'
-        mut_fname = 'TODO'
-        anchor_id = 'TODO'
+        train_fname = 'target/cov/clusters/all_sarscov2.fasta'
+        mut_fname = 'target/cov/mutation/mutations_sarscov2.fa'
+        anchor_id = 'YP_009724390.1'
     else:
         raise ValueError('invalid option {}'.format(virus))
 
@@ -74,51 +74,6 @@ def plot_result(rank_vals, escape_idx, virus, fname_prefix,
                 .format(virus, fname_prefix), dpi=300)
     plt.close()
 
-def escape_energy(virus, vocabulary):
-    seq, seqs_escape, train_fname, mut_fname, anchor_id = load(virus)
-    if virus == 'h1':
-        energy_fname = 'target/flu/clusters/all_h1.fasta.E.txt'
-    elif virus == 'h3':
-        energy_fname = 'target/flu/clusters/all_h3.fasta.E.txt'
-    elif virus == 'bg505':
-        energy_fname = 'target/hiv/clusters/all_BG505.fasta.E.txt'
-    elif virus == 'sarscov2':
-        energy_fname = 'TODO'
-    else:
-        raise ValueError('invalid option {}'.format(virus))
-
-    anchor = None
-    for idx, record in enumerate(SeqIO.parse(train_fname, 'fasta')):
-        if record.id == anchor_id:
-            anchor = str(record.seq).replace('-', '')
-    assert(anchor is not None)
-
-    train_seqs = list(SeqIO.parse(train_fname, 'fasta'))
-    mut_seqs = list(SeqIO.parse(mut_fname, 'fasta'))
-    energies = np.loadtxt(energy_fname)
-    assert(len(energies) == len(train_seqs) + len(mut_seqs))
-
-    mut2energy = { str(seq.seq).replace('-', ''): -energy
-                   for seq, energy in
-                   zip(mut_seqs, energies[len(train_seqs):]) }
-
-    mut_energies, escape_idx = [], []
-    for i in range(len(anchor)):
-        if virus == 'bg505' and (i < 29 or i > 698):
-            continue
-        for word in vocabulary:
-            if anchor[i] == word:
-                continue
-            mut_seq = anchor[:i] + word + anchor[i + 1:]
-            if mut_seq in seqs_escape and \
-               (sum([ m['significant'] for m in seqs_escape[mut_seq] ]) > 0):
-                escape_idx.append(len(mut_energies))
-            mut_energies.append(mut2energy[mut_seq])
-    mut_energies = np.array(mut_energies)
-
-    plot_result(mut_energies, escape_idx, virus, 'energy',
-                legend_name='Potts model energy')
-
 def escape_evcouplings(virus, vocabulary):
     seq, seqs_escape, train_fname, mut_fname, anchor_id = load(virus)
     if virus == 'h1':
@@ -131,7 +86,8 @@ def escape_evcouplings(virus, vocabulary):
         energy_fname = ('target/hiv/evcouplings/hiv_env/mutate/'
                         'hiv_env_single_mutant_matrix.csv')
     elif virus == 'sarscov2':
-        energy_fname = ('TODO')
+        energy_fname = ('target/cov/evcouplings/sarscov2/mutate/'
+                        'sarscov2_single_mutant_matrix.csv')
     else:
         raise ValueError('invalid option {}'.format(virus))
 
@@ -258,7 +214,7 @@ def escape_tape(virus, vocabulary, pretrained='transformer'):
         embed_fname = ('target/hiv/embedding/{}_hiv.npz'
                        .format(fname_prefix))
     elif virus == 'sarscov2':
-        embed_fname = ('target/sarscov2/embedding/{}_sarscov2.npz'
+        embed_fname = ('target/cov/embedding/{}_sarscov2.npz'
                        .format(fname_prefix))
     else:
         raise ValueError('invalid option {}'.format(virus))
@@ -314,7 +270,7 @@ def escape_bepler(virus, vocabulary):
     elif virus == 'bg505':
         embed_fname = 'target/hiv/embedding/bepler_ssa_hiv.txt'
     elif virus == 'sarscov2':
-        embed_fname = 'target/sarscov2/embedding/bepler_ssa_sarscov2.txt'
+        embed_fname = 'target/cov/embedding/bepler_ssa_sarscov2.txt'
     else:
         raise ValueError('invalid option {}'.format(virus))
 

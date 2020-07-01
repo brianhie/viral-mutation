@@ -26,9 +26,9 @@ def plot_escape_benchmark(df):
         'CSCS',
     ]
     colors = [
-        '#ADD8E6', '#ADD8E6', '#ADD8E6',
-        '#FFAAAA', '#FFAAAA', '#FFAAAA',
-        '#BA55D3',#'#8B008B',
+        '#dbe3e2', '#dbe3e2', '#dbe3e2',
+        '#b7c8c4', '#b7c8c4', '#b7c8c4',
+        '#6f8a91',
     ]
 
     strains = sorted(set(df['strain']))
