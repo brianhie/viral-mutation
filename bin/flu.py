@@ -10,11 +10,11 @@ def parse_args():
                         help='Type of language model (e.g., hmm, lstm)')
     parser.add_argument('--namespace', type=str, default='flu',
                         help='Model namespace')
-    parser.add_argument('--dim', type=int, default=256,
+    parser.add_argument('--dim', type=int, default=512,
                         help='Embedding dimension')
-    parser.add_argument('--batch-size', type=int, default=600,
+    parser.add_argument('--batch-size', type=int, default=1000,
                         help='Training minibatch size')
-    parser.add_argument('--n-epochs', type=int, default=20,
+    parser.add_argument('--n-epochs', type=int, default=14,
                         help='Number of training epochs')
     parser.add_argument('--seed', type=int, default=1,
                         help='Random seed')
@@ -32,8 +32,6 @@ def parse_args():
                         help='Analyze mutational semantic change')
     parser.add_argument('--combfit', action='store_true',
                         help='Analyze combinatorial fitness')
-    parser.add_argument('--evolve', action='store_true',
-                        help='Evolve a sequence')
     args = parser.parse_args()
     return args
 
@@ -229,31 +227,9 @@ def analyze_embedding(args, model, seqs, vocabulary):
     plot_umap(adata[adata.obs['louvain'] == '30'],
               namespace='flu1918')
 
-    #interpret_clusters(adata)
+    interpret_clusters(adata)
 
-    #seq_clusters(adata)
-
-def evolve(args, model, vocabulary, start_seq,
-           n_timesteps=100, prob_cutoff=1e-3,
-           beta=0.1, gamma_shape=1., gamma_scale=5.,
-           verbose=True):
-    tprint('Seq at t = 0:')
-    tprint(start_seq)
-    curr_seq = start_seq
-    for time in range(n_timesteps):
-        seqs, prob, change = analyze_semantics(
-            args, model, vocabulary, curr_seq, {},
-            prob_cutoff=prob_cutoff, beta=beta,
-            plot_acquisition=False, verbose=verbose
-        )
-        acquisition = ss.rankdata(change) + (beta * ss.rankdata(prob))
-        argsort = np.argsort(-acquisition)
-        assert(argsort[0] == np.argmax(acquisition))
-        argsort_idx = math.floor(np.random.gamma(gamma_shape, gamma_scale))
-        acq_idx = argsort[argsort_idx]
-        curr_seq = seqs[acq_idx]
-        tprint('Seq at t = {}:'.format(time + 1))
-        tprint(curr_seq)
+    seq_clusters(adata)
 
 if __name__ == '__main__':
     args = parse_args()
@@ -323,11 +299,3 @@ if __name__ == '__main__':
             analyze_comb_fitness(args, model, vocabulary,
                                  strain, wt_seqs[strain], seqs_fitness,
                                  prob_cutoff=0., beta=1.)
-
-    if args.evolve:
-        from escape import load_lee2019
-        start_seq = load_lee2019()[0]
-        for beta in [ 0., 0.1, 0.25, 1. ]:
-            tprint('\nBeta = {}\n'.format(beta))
-            evolve(args, model, vocabulary, start_seq,
-                   n_timesteps=100, prob_cutoff=1e-3, beta=beta,)

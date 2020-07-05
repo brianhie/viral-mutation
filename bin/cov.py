@@ -10,11 +10,11 @@ def parse_args():
                         help='Type of language model (e.g., hmm, lstm)')
     parser.add_argument('--namespace', type=str, default='cov',
                         help='Model namespace')
-    parser.add_argument('--dim', type=int, default=256,
+    parser.add_argument('--dim', type=int, default=512,
                         help='Embedding dimension')
     parser.add_argument('--batch-size', type=int, default=500,
                         help='Training minibatch size')
-    parser.add_argument('--n-epochs', type=int, default=20,
+    parser.add_argument('--n-epochs', type=int, default=11,
                         help='Number of training epochs')
     parser.add_argument('--seed', type=int, default=1,
                         help='Random seed')
@@ -54,9 +54,7 @@ def parse_viprbrc(entry):
     from mammals import species2group
 
     meta = {
-        'prot_name': fields[1],
         'strain': fields[5],
-        'date': date,
         'host': fields[8],
         'group': species2group[fields[8]],
         'country': country,
@@ -77,7 +75,7 @@ def parse_nih(entry):
         continent = 'NA'
 
     meta = {
-        'prot_id': fields[0].rstrip(),
+        'strain': 'SARS-CoV-2',
         'host': 'human',
         'group': 'human',
         'country': country,
@@ -109,6 +107,7 @@ def parse_gisaid(entry):
     from mammals import species2group
 
     meta = {
+        'strain': fields[1],
         'host': host,
         'group': species2group[host],
         'country': country,
@@ -135,7 +134,6 @@ def process(fnames):
                 meta = parse_nih(record.description)
             meta['accession'] = record.description
             seqs[record.seq].append(meta)
-
 
     with open('data/cov/cov_all.fa', 'w') as of:
         for seq in seqs:
@@ -222,11 +220,12 @@ def analyze_embedding(args, model, seqs, vocabulary):
     sc.tl.umap(adata, min_dist=1.)
 
     sc.set_figure_params(dpi_save=500)
-    plot_umap(adata, [ 'host', 'group', 'continent' ])
+    plot_umap(adata, [ 'host', 'group', 'continent', 'louvain' ])
 
     interpret_clusters(adata)
 
-    plot_umap(adata[adata.obs['louvain'] == '19'],
+    plot_umap(adata[(adata.obs['louvain'] == '0') |
+                    (adata.obs['louvain'] == '2')],
               [ 'host', 'group', 'country' ],
               namespace='cov7')
 

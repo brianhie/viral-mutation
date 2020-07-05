@@ -2,6 +2,23 @@ from utils import *
 
 from sklearn.metrics import auc
 
+def compute_p(true_val, n_interest, n_total, n_permutations=10000):
+    null_distribution = []
+    norm = n_interest * n_total
+    for _ in range(n_permutations):
+        interest = set(np.random.choice(n_total, size=n_interest,
+                                        replace=False))
+        n_acquired = 0
+        acquired, total = [], []
+        for i in range(n_total):
+            if i in interest:
+                n_acquired += 1
+            acquired.append(n_acquired)
+            total.append(i + 1)
+        null_distribution.append(auc(total, acquired) / norm)
+    null_distribution = np.array(null_distribution)
+    return sum(null_distribution >= true_val) / n_permutations
+
 def cached_escape(cache_fname, beta, plot=True, namespace='semantics'):
     prob, change, escape_idx, viable_idx = [], [], [], []
     with open(cache_fname) as f:
@@ -121,7 +138,9 @@ def cached_escape(cache_fname, beta, plot=True, namespace='semantics'):
     print('Escape semantics, beta = {} [{}]'
           .format(beta, namespace))
 
-    print('AUC (CSCS): {}'.format(norm_auc))
+    norm_auc_p = compute_p(norm_auc, sum(escape_idx), len(escape_idx))
+
+    print('AUC (CSCS): {}, P = {}'.format(norm_auc, norm_auc_p))
     print('AUC (semantic change only): {}'.format(norm_auc_change))
     print('AUC (grammaticality only): {}'.format(norm_auc_prob))
 

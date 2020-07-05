@@ -217,10 +217,13 @@ def load_starr2020():
             seqs_fitness[fit_key][0]['preferences']
         )
 
+    print(len(seqs_fitness))
+
     return { strain: wt_seq }, seqs_fitness
 
 if __name__ == '__main__':
+    load_starr2020()
+    exit()
     load_doud2016()
     load_haddox2018()
-    load_starr2020()
     load_wu2020()

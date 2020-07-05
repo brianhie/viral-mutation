@@ -19,9 +19,9 @@ def generate_pymol_colors(ofname, df, idx_pdb):
     color_data = []
     for idx in sorted(set(df['pos'])):
         assert(idx >= 0)
-        chain, resi = idx_pdb[idx]
         acq_mean = np.mean(df[df['pos'] == idx]['acquisition'])
-        color_data.append([ chain, resi, acq_mean ])
+        for chain, resi in idx_pdb[idx]:
+            color_data.append([ chain, resi, acq_mean ])
 
     acq_min = min([ acq for _, _, acq in color_data ])
     acq_max = max([ acq for _, _, acq in color_data ])
@@ -65,7 +65,7 @@ def color_lee2019():
         f.readline()
         for line in f:
             pos, chain, resi = line.rstrip().split(',')
-            pos_pdb[pos] = (chain, resi)
+            pos_pdb[pos] = [ (chain, resi) ]
 
     dirname = 'target/flu/structure'
     mkdir_p(dirname)
@@ -79,18 +79,10 @@ def color_lee2019():
 def color_doud2018():
     df = load_data('h1')
 
-    idx_pdb = {}
-    with open('data/influenza/escape_doud2018/H1toH3_renumber.csv') as f:
-        f.readline()
-        for line in f:
-            fields = line.rstrip().split(',')
-            if '(HA2)' in fields[1]:
-                chain = 'B'
-                resi = int(fields[1].split(')')[-1])
-            else:
-                chain = 'A'
-                resi = fields[1]
-            idx_pdb[int(fields[0]) - 1] = (chain, resi)
+    idx_pdb = {
+        resi: [ ('A', resi), ('B', resi), ('C', resi) ]
+        for resi in range(575)
+    }
 
     dirname = 'target/flu/structure'
     mkdir_p(dirname)
@@ -106,11 +98,16 @@ def color_dingens2018():
     for idx in idxs:
         if idx < 320:
             pos = str(idx + 2)
+            idx_pdb[idx] = [ ('G', pos) ]
         elif idx == 320:
             pos = '321A'
-        else:
+            idx_pdb[idx] = [ ('G', pos) ]
+        elif idx < 514:
             pos = str(idx + 1)
-        idx_pdb[idx] = ('G', pos)
+            idx_pdb[idx] = [ ('G', pos) ]
+        else:
+            pos = str(idx + 4)
+            idx_pdb[idx] = [ ('B', pos) ]
 
     dirname = 'target/hiv/structure'
     mkdir_p(dirname)
@@ -121,10 +118,12 @@ def color_dingens2018():
 def color_starr2020():
     df = load_data('sarscov2')
 
-    idx_pdb = { idx: ('A', str(idx + 1))
+    idx_pdb = { idx: [ ('A', str(idx + 1)),
+                       ('B', str(idx + 1)),
+                       ('C', str(idx + 1)) ]
                 for idx in sorted(set(df['pos'])) }
 
-    dirname = 'target/sarscov2/structure'
+    dirname = 'target/cov/structure'
     mkdir_p(dirname)
     ofname = dirname + '/pdb_color_sarscov2_mean.pml'
 
@@ -132,6 +131,7 @@ def color_starr2020():
 
 if __name__ == '__main__':
     color_starr2020()
-    color_doud2018()
+    exit()
     color_lee2019()
+    color_doud2018()
     color_dingens2018()

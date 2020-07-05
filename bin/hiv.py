@@ -10,11 +10,11 @@ def parse_args():
                         help='Type of language model (e.g., hmm, lstm)')
     parser.add_argument('--namespace', type=str, default='hiv',
                         help='Model namespace')
-    parser.add_argument('--dim', type=int, default=256,
+    parser.add_argument('--dim', type=int, default=512,
                         help='Embedding dimension')
-    parser.add_argument('--batch-size', type=int, default=500,
+    parser.add_argument('--batch-size', type=int, default=1000,
                         help='Training minibatch size')
-    parser.add_argument('--n-epochs', type=int, default=20,
+    parser.add_argument('--n-epochs', type=int, default=4,
                         help='Number of training epochs')
     parser.add_argument('--seed', type=int, default=1,
                         help='Random seed')
@@ -90,7 +90,6 @@ def process(args, fnames, meta_fnames):
             if record.seq not in seqs:
                 seqs[record.seq] = []
             seqs[record.seq].append(meta)
-
     return seqs
 
 def split_seqs(seqs, split_method='random'):
