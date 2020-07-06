@@ -4,7 +4,7 @@ This repository contains the analysis code, links to the data, and pretrained mo
 
 ### Data
 
-You can download the relevant datasets using the commands
+You can download the [relevant datasets](http://cb.csail.mit.edu/cb/viral-mutation/data.tar.gz) (including training and validation data) using the commands
 ```bash
 wget http://cb.csail.mit.edu/cb/viral-mutation/data.tar.gz
 tar xvf data.tar.gz
