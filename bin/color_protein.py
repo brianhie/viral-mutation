@@ -130,8 +130,7 @@ def color_starr2020():
     generate_pymol_colors(ofname, df, idx_pdb)
 
 if __name__ == '__main__':
-    color_starr2020()
-    exit()
-    color_lee2019()
     color_doud2018()
+    color_lee2019()
     color_dingens2018()
+    color_starr2020()
