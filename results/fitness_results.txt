@@ -1,7 +1,3 @@
 Model	H1, WSN33	H3, Bei89	H3, Bk79	H3, Bris07L194	H3, HK68	H3, Mos99	H3, NDako16	Env, BF520	Env, BG505	Spike, CoV-2
-mafft	0.328	nan	nan	nan	nan	nan	nan	0.239	0.269	nan
-MPF/BML	0.143	nan	nan	nan	nan	nan	nan	0.038	0.091	nan
-EVcouplings (indep)	0.295	nan	nan	nan	nan	nan	nan	0.21	0.284	nan
-EVcouplings (epist)	0.294	nan	nan	nan	nan	nan	nan	0.205	0.272	nan
 Semantic change	-0.1175	-0.1653	-0.404	-0.0051	-0.2549	-0.2097	-0.0711	-0.1024	-0.1101	-0.4433
 Grammaticality	0.2789	0.1876	0.4274	0.4021	0.5396	0.2854	0.3508	0.2063	0.2684	0.4871
