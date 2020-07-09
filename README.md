@@ -19,7 +19,9 @@ Our experiments were run with Python version 3.7 on Ubuntu 18.04.
 
 ### Experiments
 
-Key results from our experiments can be found in the [`results/`](results) directory and can be reproduced with the commands below. The [`models/`](models) directory contains key pretrained models used in our analyses. Our experiments require a maximum of 400 GB of CPU RAM and 32 GB of GPU RAM; _in silico_ fitness and escape model inference can take around 35 minutes for influenza HA, 90 minutes for HIV Env, and 10 hours for SARS-CoV-2 Spike.
+Key results from our experiments can be found in the [`results/`](results) directory and can be reproduced with the commands below. The [`models/`](models) directory contains key pretrained models used in our analyses.
+
+To run the experiments below, download the data (instructions above). Our experiments require a maximum of 400 GB of CPU RAM and 32 GB of GPU RAM; _in silico_ fitness and escape model inference can take around 35 minutes for influenza HA, 90 minutes for HIV Env, and 10 hours for SARS-CoV-2 Spike.
 
 #### Influenza HA
 
@@ -93,7 +95,7 @@ python bin/cov.py bilstm --checkpoint models/cov.hdf5 --combfit \
     > cov_combfit.log 2>&1
 ```
 
-Training a new model on COV Env sequences can be done with the command
+Training a new model on coronavirus spike sequences can be done with the command
 ```bash
 python bin/cov.py bilstm --train --test \
     > cov_train.log 2>&1
