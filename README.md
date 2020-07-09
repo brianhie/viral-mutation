@@ -23,7 +23,7 @@ Key results from our experiments can be found in the [`results/`](results) direc
 
 #### Influenza HA
 
-Flu HA semantic embedding UMAPs and log files with statistics can be generated with the command
+Influenza HA semantic embedding UMAPs and log files with statistics can be generated with the command
 ```bash
 python bin/flu.py bilstm --checkpoint models/flu.hdf5 --embed \
     > flu_embed.log 2>&1
