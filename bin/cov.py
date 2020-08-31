@@ -32,6 +32,8 @@ def parse_args():
                         help='Analyze mutational semantic change')
     parser.add_argument('--combfit', action='store_true',
                         help='Analyze combinatorial fitness')
+    parser.add_argument('--comb', action='store_true',
+                        help='Analyze combinatorial mutations')
     args = parser.parse_args()
     return args
 
@@ -109,7 +111,7 @@ def parse_gisaid(entry):
     meta = {
         'strain': fields[1],
         'host': host,
-        'group': species2group[host],
+        'group': species2group[host].lower(),
         'country': country,
         'continent': continent,
         'dataset': 'gisaid',
@@ -224,10 +226,30 @@ def analyze_embedding(args, model, seqs, vocabulary):
 
     interpret_clusters(adata)
 
-    plot_umap(adata[(adata.obs['louvain'] == '0') |
-                    (adata.obs['louvain'] == '2')],
-              [ 'host', 'group', 'country' ],
+    adata_cov2 = adata[(adata.obs['louvain'] == '0') |
+                       (adata.obs['louvain'] == '2')]
+    plot_umap(adata_cov2, [ 'host', 'group', 'country' ],
               namespace='cov7')
+
+    keep_strains = set(adata_cov2.obs['strain'])
+    base_seq = SeqIO.read('data/cov/cov2_spike_wt.fasta', 'fasta').seq
+    base_embedding = seqs[base_seq][0]['embedding']
+    dirname = 'target/{}/embedding'.format(args.namespace)
+    mkdir_p(dirname)
+    with open(dirname + '/null_observed.txt', 'w') as of:
+        for seq in seqs:
+            meta = seqs[seq][0]
+            if meta['strain'] not in keep_strains or \
+               meta['group'] != 'human':
+                if meta['group'] != 'human':
+                    print(meta['strain'])
+                continue
+            if seq == base_seq:
+                continue
+            if len(seq) != len(base_seq):
+                continue
+            sem_change = abs(base_embedding - meta['embedding']).sum()
+            of.write(str(sem_change) + '\n')
 
 if __name__ == '__main__':
     args = parse_args()
@@ -283,3 +305,15 @@ if __name__ == '__main__':
             analyze_comb_fitness(args, model, vocabulary,
                                  strain, wt_seqs[strain], seqs_fitness,
                                  comb_batch=10000, prob_cutoff=0., beta=1.)
+
+    if args.comb:
+        from combinatorial import load_cov_mut4, load_cov_mut8, load_cov_mut12
+        tprint('Four mutant null...')
+        wt_seq, mutants = load_cov_mut4()
+        analyze_combinatorial(args, model, vocabulary, wt_seq, mutants)
+        tprint('Eight mutant null...')
+        wt_seq, mutants = load_cov_mut8()
+        analyze_combinatorial(args, model, vocabulary, wt_seq, mutants)
+        tprint('Twelve mutant null...')
+        wt_seq, mutants = load_cov_mut12()
+        analyze_combinatorial(args, model, vocabulary, wt_seq, mutants)

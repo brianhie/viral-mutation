@@ -429,3 +429,92 @@ def analyze_semantics(args, model, vocabulary, seq_to_mutate, escape_seqs,
                       namespace=plot_namespace)
 
     return seqs, np.array(probs), np.array(changes)
+
+def analyze_combinatorial(
+        args, model, seqs, vocabulary, wt_seq, mutants,
+        n_permutations=10000, comb_batch=100,
+):
+    assert(len(mutants) == 1)
+    n_mutations = list(mutants.keys())[0]
+
+    dirname = ('target/{}/combinatorial/cache'.format(args.namespace))
+    mkdir_p(dirname)
+    fname = dirname + '/{}_mut_{}.txt'.format(args.namespace,
+                                              n_mutations)
+
+    y_pred = predict_sequence_prob(
+        args, wt_seq, vocabulary, model, verbose=False
+    )
+
+    word_pos_prob = {}
+    for i in range(len(wt_seq)):
+        for word in vocabulary:
+            if wt_seq[i] == word:
+                continue
+            word_idx = vocabulary[word]
+            prob = y_pred[i + 1, word_idx]
+            word_pos_prob[(word, i)] = prob
+
+    prob_seqs, seq_prob = {}, {}
+    for mutant in mutants[n_mutations]:
+        positions = [ pos for pos in range(len(wt_seq))
+                      if wt_seq[pos] != mutant[pos] ]
+        assert(len(positions) == n_mutations)
+        mut_str, raw_probs = '', []
+        for pos in positions:
+            word = mutant[pos]
+            mut_str += wt_seq[pos] + str(pos + 1) + word + ','
+            raw_probs.append(word_pos_prob[(word, pos)])
+        prob_seqs[mutant] = [ { 'mutations': mut_str.rstrip(',') } ]
+        seq_prob[mutant] = sum(np.log10(raw_probs))
+
+    # Construct null.
+    for _ in range(n_permutations):
+        positions = np.random.choice(len(wt_seq), n_mutations,
+                                     replace=False)
+        mutable = [ _ for _ in wt_seq ]
+        mut_str, raw_probs = '', []
+        for pos in positions:
+            choices = [ w for w in vocabulary if w != wt_seq[pos] ]
+            word = np.random.choice(choices)
+            mutable[pos] = word
+            mut_str += wt_seq[pos] + str(pos + 1) + word + ','
+            raw_probs.append(word_pos_prob[(word, pos)])
+        mutable = ''.join(mutable)
+        prob_seqs[mutable] = [ { 'mutations': mut_str.rstrip(',') } ]
+        seq_prob[mutable] = sum(np.log10(raw_probs))
+
+    seqs = np.array([ str(seq) for seq in sorted(seq_prob.keys()) ])
+
+    base_embedding = embed_seqs(
+        args, model, { wt_seq: [ {} ] }, vocabulary,
+        use_cache=False, verbose=False
+    )[wt_seq][0]['embedding']
+
+    if comb_batch is None:
+        comb_batch = len(seqs)
+    n_batches = math.ceil(float(len(seqs)) / comb_batch)
+
+    seq_change = {}
+    with open(fname, 'w') as of:
+        for batchi in range(n_batches):
+            start = batchi * comb_batch
+            end = (batchi + 1) * comb_batch
+            prob_seqs_batch = {
+                seq: prob_seqs[seq] for seq in seqs[start:end]
+                if seq != wt_seq
+            }
+            prob_seqs_batch = embed_seqs(
+                args, model, prob_seqs_batch, vocabulary,
+                use_cache=False, verbose=False
+            )
+            for mut_seq in prob_seqs_batch:
+                meta = prob_seqs_batch[mut_seq][0]
+                sem_change = abs(base_embedding - meta['embedding']).sum()
+                seq_change[mut_seq] = sem_change
+
+                fields = [ meta['mutations'], seq_prob[mut_seq],
+                           sem_change ]
+                of.write('\t'.join([ str(field) for field in fields ]))
+                of.write('\n')
+            of.flush()
