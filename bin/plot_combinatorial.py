@@ -53,8 +53,8 @@ def plot_combinatorial(fname, n_mutations, mutants):
         plt.close()
 
 if __name__ == '__main__':
-    for n_mutations in [ 2, 4, 8 ]:
-        fname = ('target/cov/combinatorial/cache/cov_mut_{}.txt'
+    for n_mutations in [ 4, 8, 12 ]:
+        fname = ('target/cov/combinatorial/cache/cov_mut_{}.txt.1'
                  .format(n_mutations))
 
         if n_mutations == 2:
@@ -64,6 +64,9 @@ if __name__ == '__main__':
         elif n_mutations == 8:
             mutants = [ 'N439K,Y449F,F486L,Q493Y,'
                         'S494R,Q498Y,N501D,Y505H' ]
+        elif n_mutations == 12:
+            mutants = [ 'K417V,N439R,G446T,L455Y,F456L,A475P,'
+                        'F486L,Q493N,S494D,Q498Y,N501T,V503I' ]
         else:
             raise NotImplementedError()
 
