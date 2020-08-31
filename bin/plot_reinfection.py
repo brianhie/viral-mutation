@@ -1,6 +1,6 @@
 from utils import *
 
-if __name__ == '__main__':
+def plot_reinfection():
     with open('target/cov/reinfection/cache/cov_mut_4.txt') as f:
         fields = f.readline().rstrip().split()
         base_prob, base_change = float(fields[2]), float(fields[3])
@@ -40,3 +40,6 @@ if __name__ == '__main__':
         plt.axvline(x=base_prob, color='k', linestyle='--')
         plt.savefig('figures/cov_reinfection.png', dpi=300)
         plt.close()
+
+if __name__ == '__main__':
+    plot_reinfection()

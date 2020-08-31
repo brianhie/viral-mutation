@@ -3,6 +3,7 @@ from utils import *
 from sklearn.metrics import auc
 
 def compute_p(true_val, n_interest, n_total, n_permutations=10000):
+    return 1
     null_distribution = []
     norm = n_interest * n_total
     for _ in range(n_permutations):
@@ -30,6 +31,7 @@ def cached_escape(cache_fname, beta, plot=True, namespace='semantics'):
             change.append(float(fields[4]))
             viable_idx.append(fields[5] == 'True')
             escape_idx.append(fields[6] == 'True')
+
     prob, orig_prob = np.array(prob), np.array(prob)
     change, orig_change  = np.array(change), np.array(change)
     escape_idx = np.array(escape_idx)

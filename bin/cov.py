@@ -291,3 +291,5 @@ if __name__ == '__main__':
         tprint('To et al. 2020...')
         wt_seq, mutants = load_to2020()
         analyze_reinfection(args, model, seqs, vocabulary, wt_seq, mutants)
+        from plot_reinfection import plot_reinfection
+        plot_reinfection()
