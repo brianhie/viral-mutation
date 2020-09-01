@@ -95,6 +95,12 @@ python bin/cov.py bilstm --checkpoint models/cov.hdf5 --combfit \
     > cov_combfit.log 2>&1
 ```
 
+Experiments measuring grammaticality and semantic change of a SARS-CoV-2 reinfection event documented by [To et al. (2020)](https://academic.oup.com/cid/advance-article/doi/10.1093/cid/ciaa1275/5897019) can be done with the command
+```bash
+python bin/cov.py bilstm --checkpoint models/cov.hdf5 --reinfection \
+    > cov_reinfection.log 2>&1
+```
+
 Training a new model on coronavirus spike sequences can be done with the command
 ```bash
 python bin/cov.py bilstm --train --test \

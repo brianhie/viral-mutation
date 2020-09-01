@@ -125,11 +125,10 @@ def load_baum2020():
     seq = SeqIO.read('data/cov/cov2_spike_wt.fasta', 'fasta').seq
 
     muts = [
-        'K417E', 'K444Q', 'V445A', 'N450D', 'Y453F', 'L455F',
-        'E484K', 'G485D', 'F486V', 'F490P', 'Q493K', 'H655Y',
-        'R682Q', 'R685S', 'V687G', 'G769E', 'Q779K', 'V1128A',
-    ] + [
-        'N234Q', 'A475V', 'L452R', 'V483A', 'F490L',
+        'N234Q', 'K417E', 'K444Q', 'V445A', 'N450D', 'L452R',
+        'Y453F', 'L455F', 'A475V', 'V483A', 'E484K', 'G485D',
+        'F486V', 'F490L', 'F490P', 'Q493K', 'H655Y', 'R682Q',
+        'R685S', 'V687G', 'G769E', 'Q779K', 'V1128A',
     ]
 
     seqs_escape = {}
