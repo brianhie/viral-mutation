@@ -270,7 +270,7 @@ def analyze_comb_fitness(
                     assert(aa == wt_seq[idx])
             assert(len(raw_probs) == len(mut_pos))
 
-            grammar = np.sum(np.log10(raw_probs))
+            grammar = np.mean(np.log10(raw_probs))
             sem_change = abs(base_embedding - meta['embedding']).sum()
 
             data.append([

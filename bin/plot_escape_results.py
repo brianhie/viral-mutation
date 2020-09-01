@@ -21,7 +21,7 @@ def plot_escape_benchmark(df):
         # Fitness/"grammaticality" first.
         'mafft', 'EVcouplings (indep)', 'EVcouplings (epist)',
         # Then semantic change.
-        'Bepler', 'TAPE transformer', 'Unirep',
+        'Bepler', 'TAPE transformer', 'UniRep',
         # Then CSCS.
         'CSCS',
     ]
