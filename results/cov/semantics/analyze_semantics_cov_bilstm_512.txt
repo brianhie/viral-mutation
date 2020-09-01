@@ -5684,7 +5684,7 @@ pos	wt	mut	prob	change	is_viable	is_escape
 481	G	D	1.0761431e-05	4668.0	False	False
 481	G	E	3.8509743e-08	5012.0	False	False
 481	G	F	8.714872e-06	3840.0	False	False
-482	V	A	0.00030088236	3270.0	False	False
+482	V	A	0.00030088236	3270.0	True	True
 482	V	B	4.0879886e-18	2770.0	False	False
 482	V	C	5.166094e-07	5812.0	False	False
 482	V	D	5.9801884e-08	2952.0	False	False
@@ -24559,7 +24559,7 @@ pos	wt	mut	prob	change	is_viable	is_escape
 489	F	I	3.8961556e-08	3848.0	False	False
 489	F	J	1.4102517e-12	3822.0	False	False
 489	F	K	9.7949346e-08	4230.0	False	False
-489	F	L	1.4881706e-05	5530.0	False	False
+489	F	L	1.4881706e-05	5530.0	True	True
 489	F	M	1.9327962e-07	3044.0	False	False
 489	F	N	1.6924129e-07	4916.0	False	False
 489	F	P	1.7056867e-07	5784.0	True	True
@@ -24779,7 +24779,7 @@ pos	wt	mut	prob	change	is_viable	is_escape
 474	A	S	2.5619074e-05	2124.0	False	False
 474	A	T	3.3675642e-05	2048.0	False	False
 474	A	U	1.2329229e-11	2378.0	False	False
-474	A	V	0.00011347908	2510.0	False	False
+474	A	V	0.00011347908	2510.0	True	True
 474	A	W	2.1061097e-09	3202.0	False	False
 474	A	X	1.2329229e-11	2430.0	False	False
 474	A	Y	3.1568895e-06	2796.0	False	False
@@ -25049,7 +25049,7 @@ pos	wt	mut	prob	change	is_viable	is_escape
 451	L	N	2.7421736e-06	4096.0	False	False
 451	L	P	2.3860305e-09	4624.0	False	False
 451	L	Q	7.614741e-07	5064.0	False	False
-451	L	R	8.2038474e-05	3542.0	False	False
+451	L	R	8.2038474e-05	3542.0	True	True
 451	L	S	8.280646e-08	3538.0	False	False
 451	L	T	5.3271337e-06	3384.0	False	False
 451	L	U	9.0699925e-13	2802.0	False	False
@@ -27728,7 +27728,7 @@ pos	wt	mut	prob	change	is_viable	is_escape
 234	I	Y	4.9912944e-07	4890.0	False	False
 234	I	Z	5.957692e-12	5650.0	False	False
 233	N	P	8.4192806e-08	6108.0	False	False
-233	N	Q	2.0957247e-08	4520.0	False	False
+233	N	Q	2.0957247e-08	4520.0	True	True
 233	N	R	1.132938e-07	6476.0	False	False
 233	N	S	7.638236e-06	5452.0	False	False
 233	N	T	7.805279e-05	4810.0	False	False

@@ -432,6 +432,7 @@ def analyze_semantics(args, model, vocabulary, seq_to_mutate, escape_seqs,
 
 def analyze_reinfection(
         args, model, seqs, vocabulary, wt_seq, mutants,
+        namespace='reinfection',
 ):
     assert(len(mutants) == 1)
     n_mutations = list(mutants.keys())[0]
@@ -458,7 +459,7 @@ def analyze_reinfection(
     dirname = ('target/{}/reinfection/cache'.format(args.namespace))
     mkdir_p(dirname)
     fname = dirname + '/{}_mut_{}.txt'.format(args.namespace,
-                                              n_mutations)
+                                              namespace)
 
     # Compute mutant statistics.
 
@@ -480,7 +481,8 @@ def analyze_reinfection(
             )[mutant][0]['embedding']
             sem_change = abs(base_embedding - embedding).sum()
 
-            fields = [ mut_str.rstrip(','), seq_prob, sem_change ]
+            fields = [ mut_str.rstrip(','), n_mutations,
+                       seq_prob, sem_change ]
             of.write('\t'.join([ str(field) for field in fields ]) + '\n')
 
     # Compare to surveilled sequences.

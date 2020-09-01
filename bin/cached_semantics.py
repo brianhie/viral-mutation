@@ -3,7 +3,6 @@ from utils import *
 from sklearn.metrics import auc
 
 def compute_p(true_val, n_interest, n_total, n_permutations=10000):
-    return 1
     null_distribution = []
     norm = n_interest * n_total
     for _ in range(n_permutations):

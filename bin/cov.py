@@ -32,8 +32,8 @@ def parse_args():
                         help='Analyze mutational semantic change')
     parser.add_argument('--combfit', action='store_true',
                         help='Analyze combinatorial fitness')
-    parser.add_argument('--comb', action='store_true',
-                        help='Analyze combinatorial mutations')
+    parser.add_argument('--reinfection', action='store_true',
+                        help='Analyze reinfection cases')
     args = parser.parse_args()
     return args
 
@@ -287,9 +287,19 @@ if __name__ == '__main__':
                                  comb_batch=10000, prob_cutoff=0., beta=1.)
 
     if args.reinfection:
-        from reinfection import load_to2020
+        from reinfection import load_to2020, load_ratg13, load_sarscov1
+        from plot_reinfection import plot_reinfection
         tprint('To et al. 2020...')
         wt_seq, mutants = load_to2020()
-        analyze_reinfection(args, model, seqs, vocabulary, wt_seq, mutants)
-        from plot_reinfection import plot_reinfection
-        plot_reinfection()
+        analyze_reinfection(args, model, seqs, vocabulary, wt_seq, mutants,
+                            namespace='to2020')
+        plot_reinfection(namespace='to2020')
+        tprint('Positive controls...')
+        wt_seq, mutants = load_ratg13()
+        analyze_reinfection(args, model, seqs, vocabulary, wt_seq, mutants,
+                            namespace='ratg13')
+        plot_reinfection(namespace='ratg13')
+        wt_seq, mutants = load_sarscov1()
+        analyze_reinfection(args, model, seqs, vocabulary, wt_seq, mutants,
+                            namespace='sarscov1')
+        plot_reinfection(namespace='sarscov1')

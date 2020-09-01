@@ -1,7 +1,8 @@
 from utils import *
 
-def plot_reinfection():
-    with open('target/cov/reinfection/cache/cov_mut_4.txt') as f:
+def plot_reinfection(namespace='reinfection'):
+    with open('target/cov/reinfection/cache/cov_mut_{}.txt'
+              .format(namespace)) as f:
         fields = f.readline().rstrip().split()
         base_prob, base_change = float(fields[2]), float(fields[3])
 
@@ -38,8 +39,9 @@ def plot_reinfection():
         plt.scatter([ base_prob ], [ np.log10(base_change) ], c='k')
         plt.axhline(y=np.log10(base_change), color='k', linestyle='--')
         plt.axvline(x=base_prob, color='k', linestyle='--')
-        plt.savefig('figures/cov_reinfection.png', dpi=300)
+        plt.savefig('figures/cov_reinfection_{}.png'
+                    .format(namespace), dpi=300)
         plt.close()
 
 if __name__ == '__main__':
-    plot_reinfection()
+    plot_reinfection(sys.argv[1])
