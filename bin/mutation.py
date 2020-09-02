@@ -270,7 +270,10 @@ def analyze_comb_fitness(
                     assert(aa == wt_seq[idx])
             assert(len(raw_probs) == len(mut_pos))
 
-            grammar = np.mean(np.log10(raw_probs))
+            if len(raw_probs) == 0:
+                grammar = 0.
+            else:
+                grammar = np.mean(np.log10(raw_probs))
             sem_change = abs(base_embedding - meta['embedding']).sum()
 
             data.append([
@@ -473,7 +476,10 @@ def analyze_reinfection(
                 word = mutant[pos]
                 mut_str += wt_seq[pos] + str(pos + 1) + word + ','
                 raw_probs.append(word_pos_prob[(word, pos)])
-            seq_prob = np.mean(np.log10(raw_probs))
+            if len(raw_probs) == 0:
+                seq_prob = 0.
+            else:
+                seq_prob = np.mean(np.log10(raw_probs))
 
             embedding = embed_seqs(
                 args, model, { mutant: [ {} ] }, vocabulary,
