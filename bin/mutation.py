@@ -273,7 +273,7 @@ def analyze_comb_fitness(
             if len(raw_probs) == 0:
                 grammar = 0.
             else:
-                grammar = np.mean(np.log10(raw_probs))
+                grammar = np.sum(np.log10(raw_probs))
             sem_change = abs(base_embedding - meta['embedding']).sum()
 
             data.append([
