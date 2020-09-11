@@ -134,7 +134,7 @@ done
 #########################
 
 declare -a methods=("bepler" "evcouplings" "freq" "tape" "unirep")
-declare -a viruses=("h1" "h3" "bg505" "sarscov2")
+declare -a viruses=("h1" "h3" "bg505" "sarscov2" "cov2rbd")
 
 for method in ${methods[@]}
 do

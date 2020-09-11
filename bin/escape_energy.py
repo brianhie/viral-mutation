@@ -38,6 +38,12 @@ def load(virus):
         train_fname = 'target/cov/clusters/all_sarscov2.fasta'
         mut_fname = 'target/cov/mutation/mutations_sarscov2.fa'
         anchor_id = 'YP_009724390.1'
+    elif virus == 'cov2rbd':
+        from escape import load_greaney2020
+        seq, seqs_escape = load_greaney2020()
+        train_fname = 'target/cov/clusters/all_sarscov2.fasta'
+        mut_fname = 'target/cov/mutation/mutations_sarscov2.fa'
+        anchor_id = 'YP_009724390.1'
     else:
         raise ValueError('invalid option {}'.format(virus))
 
@@ -88,6 +94,9 @@ def escape_evcouplings(virus, vocabulary):
     elif virus == 'sarscov2':
         energy_fname = ('target/cov/evcouplings/sarscov2/mutate/'
                         'sarscov2_single_mutant_matrix.csv')
+    elif virus == 'cov2rbd':
+        energy_fname = ('target/cov/evcouplings/sarscov2/mutate/'
+                        'sarscov2_single_mutant_matrix.csv')
     else:
         raise ValueError('invalid option {}'.format(virus))
 
@@ -113,6 +122,8 @@ def escape_evcouplings(virus, vocabulary):
     mut_scores_epi, mut_scores_ind = [], []
     for i in range(len(anchor)):
         if virus == 'bg505' and (i < 29 or i > 698):
+            continue
+        if virus == 'cov2rbd' and (i < 318 or i > 540):
             continue
         for word in vocabulary:
             if anchor[i] == word:
@@ -159,6 +170,9 @@ def escape_freq(virus, vocabulary):
         if anchor[i] == '-':
             continue
         if virus == 'bg505' and (real_pos < 29 or real_pos > 698):
+            real_pos += 1
+            continue
+        if virus == 'cov2rbd' and (real_pos < 318 or real_pos > 540):
             real_pos += 1
             continue
         for word in vocabulary:
@@ -216,6 +230,9 @@ def escape_tape(virus, vocabulary, pretrained='transformer'):
     elif virus == 'sarscov2':
         embed_fname = ('target/cov/embedding/{}_sarscov2.npz'
                        .format(fname_prefix))
+    elif virus == 'cov2rbd':
+        embed_fname = ('target/cov/embedding/{}_sarscov2.npz'
+                       .format(fname_prefix))
     else:
         raise ValueError('invalid option {}'.format(virus))
 
@@ -247,6 +264,8 @@ def escape_tape(virus, vocabulary, pretrained='transformer'):
     for i in range(len(anchor)):
         if virus == 'bg505' and (i < 29 or i > 698):
             continue
+        if virus == 'cov2rbd' and (i < 318 or i > 540):
+            continue
         for word in vocabulary:
             if anchor[i] == word:
                 continue
@@ -270,6 +289,8 @@ def escape_bepler(virus, vocabulary):
     elif virus == 'bg505':
         embed_fname = 'target/hiv/embedding/bepler_ssa_hiv.txt'
     elif virus == 'sarscov2':
+        embed_fname = 'target/cov/embedding/bepler_ssa_sarscov2.txt'
+    elif virus == 'cov2rbd':
         embed_fname = 'target/cov/embedding/bepler_ssa_sarscov2.txt'
     else:
         raise ValueError('invalid option {}'.format(virus))
@@ -307,6 +328,8 @@ def escape_bepler(virus, vocabulary):
     escape_idx, changes = [], []
     for i in range(len(anchor)):
         if virus == 'bg505' and (i < 29 or i > 698):
+            continue
+        if virus == 'cov2rbd' and (i < 318 or i > 540):
             continue
         for word in vocabulary:
             if anchor[i] == word:

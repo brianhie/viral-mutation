@@ -83,7 +83,7 @@ python bin/cov.py bilstm --checkpoint models/cov.hdf5 --embed \
     > cov_embed.log 2>&1
 ```
 
-Single-residue escape prediction using validation data from [Baum et al. (2020)](https://science.sciencemag.org/content/early/2020/06/15/science.abd0831) can be done with the command
+Single-residue escape prediction using validation data from [Baum et al. (2020)](https://science.sciencemag.org/content/early/2020/06/15/science.abd0831) and DMS data from [Greaney et al. (2020)](https://www.biorxiv.org/content/10.1101/2020.09.10.292078v1.full.pdf) can be done with the command
 ```bash
 python bin/cov.py bilstm --checkpoint models/cov.hdf5 --semantics \
     > cov_semantics.log 2>&1
