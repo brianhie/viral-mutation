@@ -270,11 +270,11 @@ if __name__ == '__main__':
                              'from checkpoint.')
 
         from escape import load_baum2020, load_greaney2020
-        #tprint('Baum et al. 2020...')
-        #seq_to_mutate, seqs_escape = load_baum2020()
-        #analyze_semantics(args, model, vocabulary,
-        #                  seq_to_mutate, seqs_escape, comb_batch=10000,
-        #                  prob_cutoff=0, beta=1., plot_acquisition=True,)
+        tprint('Baum et al. 2020...')
+        seq_to_mutate, seqs_escape = load_baum2020()
+        analyze_semantics(args, model, vocabulary,
+                          seq_to_mutate, seqs_escape, comb_batch=10000,
+                          prob_cutoff=0, beta=1., plot_acquisition=True,)
         tprint('Greaney et al. 2020...')
         seq_to_mutate, seqs_escape = load_greaney2020()
         analyze_semantics(args, model, vocabulary,
@@ -296,11 +296,17 @@ if __name__ == '__main__':
     if args.reinfection:
         from reinfection import load_to2020, load_ratg13, load_sarscov1
         from plot_reinfection import plot_reinfection
+
         tprint('To et al. 2020...')
         wt_seq, mutants = load_to2020()
-        analyze_reinfection(args, model, seqs, vocabulary, wt_seq, mutants,
-                            namespace='to2020')
-        plot_reinfection(namespace='to2020')
+        #analyze_reinfection(args, model, seqs, vocabulary, wt_seq, mutants,
+        #                    namespace='to2020')
+        #plot_reinfection(namespace='to2020')
+        null_combinatorial_fitness(args, model, seqs, vocabulary,
+                                   wt_seq, mutants, n_permutations=10000000,
+                                   namespace='to2020')
+        exit()
+
         tprint('Positive controls...')
         wt_seq, mutants = load_ratg13()
         analyze_reinfection(args, model, seqs, vocabulary, wt_seq, mutants,

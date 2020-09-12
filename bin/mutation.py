@@ -520,3 +520,67 @@ def analyze_reinfection(
             fields = [ mut_str.rstrip(','), len(raw_probs),
                        seq_prob, sem_change ]
             of.write('\t'.join([ str(field) for field in fields ]) + '\n')
+
+def null_combinatorial_fitness(
+        args, model, seqs, vocabulary, wt_seq, mutants,
+        n_permutations=1000000, comb_batch=100, namespace=None,
+):
+    if namespace is None:
+        namespace = args.namespace
+
+    assert(len(mutants) == 1)
+    n_mutations = list(mutants.keys())[0]
+
+    dirname = ('target/{}/combinatorial/cache'.format(args.namespace))
+    mkdir_p(dirname)
+    fname = dirname + '/{}_mut_{}.txt'.format(args.namespace,
+                                              n_mutations)
+
+    y_pred = predict_sequence_prob(
+        args, wt_seq, vocabulary, model, verbose=False
+    )
+
+    word_pos_prob = {}
+    for i in range(len(wt_seq)):
+        for word in vocabulary:
+            if wt_seq[i] == word:
+                continue
+            word_idx = vocabulary[word]
+            prob = y_pred[i + 1, word_idx]
+            word_pos_prob[(word, i)] = prob
+
+    seq_prob = {}
+    for mutant in mutants[n_mutations]:
+        positions = [ pos for pos in range(len(wt_seq))
+                      if wt_seq[pos] != mutant[pos] ]
+        assert(len(positions) == n_mutations)
+        mut_str, raw_probs = '', []
+        for pos in positions:
+            word = mutant[pos]
+            mut_str += wt_seq[pos] + str(pos + 1) + word + ','
+            raw_probs.append(word_pos_prob[(word, pos)])
+        seq_prob[mut_str.rstrip(',')] = sum(np.log10(raw_probs))
+
+    # Construct null.
+    null, mut_strs = [], []
+    for _ in range(n_permutations):
+        positions = np.random.choice(len(wt_seq), n_mutations,
+                                     replace=False)
+        mut_str, raw_probs = '', []
+        for pos in positions:
+            choices = [ w for w in vocabulary if w != wt_seq[pos] ]
+            word = np.random.choice(choices)
+            mut_str += wt_seq[pos] + str(pos + 1) + word + ','
+            raw_probs.append(word_pos_prob[(word, pos)])
+        null.append(sum(np.log10(raw_probs)))
+        mut_strs.append(mut_str.rstrip(','))
+    null = np.array(null)
+
+    for mut_str in seq_prob:
+        p = sum(null >= seq_prob[mut_str]) / len(null)
+        if p == 0:
+            tprint('Mutant {}, P < {}'.format(mut_str, 1 / len(null)))
+        else:
+            tprint('Mutant {}, P = {}'.format(mut_str, p))
+        for idx in np.where(null >= seq_prob[mut_str])[0]:
+            tprint('\tMutant {} is fitter'.format(mut_strs[idx]))
