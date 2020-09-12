@@ -148,7 +148,7 @@ def load_baum2020():
 
     return seq, seqs_escape
 
-def load_greaney2020(survival_cutoff=0.3):
+def load_greaney2020(survival_cutoff=0.2):
     seq = SeqIO.read('data/cov/cov2_spike_wt.fasta', 'fasta').seq
 
     sig_sites = set()
@@ -164,7 +164,7 @@ def load_greaney2020(survival_cutoff=0.3):
         for line in f:
             fields = line.rstrip().split(',')
             antibody = fields[2]
-            escape_frac = float(fields[9])
+            escape_frac = float(fields[10])
             aa_orig = fields[5]
             aa_mut = fields[6]
             pos = int(fields[4]) - 1
@@ -184,9 +184,8 @@ def load_greaney2020(survival_cutoff=0.3):
     return seq, seqs_escape
 
 if __name__ == '__main__':
-    load_greaney2020()
-    exit()
-    load_baum2020()
-    load_dingens2019()
     load_doud2018()
     load_lee2019()
+    load_dingens2019()
+    load_baum2020()
+    load_greaney2020()
