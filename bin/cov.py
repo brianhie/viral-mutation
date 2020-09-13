@@ -303,7 +303,7 @@ if __name__ == '__main__':
         #                    namespace='to2020')
         #plot_reinfection(namespace='to2020')
         null_combinatorial_fitness(args, model, seqs, vocabulary,
-                                   wt_seq, mutants, n_permutations=10000000,
+                                   wt_seq, mutants, n_permutations=100000000,
                                    namespace='to2020')
         exit()
 
