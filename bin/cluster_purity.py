@@ -32,14 +32,6 @@ def flu_purity(phylo_method='mafft'):
         cluster_fname = 'target/flu/clusters/clustal_omega_clusters_0.382.txt'
     elif phylo_method == 'clustalomega_sl':
         cluster_fname = 'target/flu/clusters/clustal_omega_singlelink_0.3.txt'
-    elif phylo_method == 'mrbayes':
-        cluster_fname = ''
-    elif phylo_method == 'mrbayes_sl':
-        cluster_fname = ''
-    elif phylo_method == 'raxml':
-        cluster_fname = ''
-    elif phylo_method == 'raxml_sl':
-        cluster_fname = ''
     elif phylo_method == 'fasttree':
         cluster_fname = 'target/flu/clusters/fasttree_clusters_5.001.txt'
     elif phylo_method == 'fasttree_sl':
@@ -79,18 +71,6 @@ def hiv_purity(phylo_method='mafft'):
         cluster_fname = 'target/hiv/clusters/clustal_omega_clusters_0.552.txt'
     elif phylo_method == 'clustalomega_sl':
         cluster_fname = 'target/hiv/clusters/clustal_omega_singelink_0.49.txt'
-    elif phylo_method == 'mrbayes':
-        cluster_fname = ''
-    elif phylo_method == 'mrbayes_sl':
-        cluster_fname = ''
-    elif phylo_method == 'raxml':
-        cluster_fname = ''
-    elif phylo_method == 'raxml_sl':
-        cluster_fname = ''
-    elif phylo_method == 'fasttree':
-        cluster_fname = ''
-    elif phylo_method == 'fasttree_sl':
-        cluster_fname = ''
     else:
         raise ValueError('Invalid phylo method {}'.format(phylo_method))
 
