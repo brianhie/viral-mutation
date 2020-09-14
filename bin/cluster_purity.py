@@ -19,12 +19,18 @@ def print_purity(metas, entries):
         tprint('Purity, phylo clustering and {}: {}'
                .format(entry, np.mean(largest_pct_entry)))
 
-def flu_purity():
+def flu_purity(phylo_method='mafft'):
     from flu import load_meta
     meta_fnames = [ 'data/influenza/ird_influenzaA_HA_allspecies_meta.tsv' ]
     metas = load_meta(meta_fnames)
 
-    cluster_fname = 'target/flu/clusters/all.clusters_0.117.txt'
+    if phylo_method == 'mafft':
+        cluster_fname = 'target/flu/clusters/all.clusters_0.117.txt'
+    elif phylo_method == 'clustalomega':
+        cluster_fname = 'target/flu/clusters/clustal_omega_clusters_0.382.txt'
+    else:
+        raise ValueError('Invalid phylo method {}'.format(phylo_method))
+
     with open(cluster_fname) as f:
         f.readline()
         for line in f:
@@ -37,14 +43,18 @@ def flu_purity():
 
     print_purity(metas, [ 'Subtype', 'Host Species' ])
 
-def hiv_purity():
+def hiv_purity(phylo_method='mafft'):
     from hiv import load_meta
     meta_fnames = [ 'data/hiv/HIV-1_env_samelen.fa' ]
     metas = load_meta(meta_fnames)
     metas = { accession.split('.')[-1]: metas[accession]
               for accession in metas }
 
-    cluster_fname = 'target/hiv/clusters/all.clusters_0.445.txt'
+    if phylo_method == 'mafft':
+        cluster_fname = 'target/hiv/clusters/all.clusters_0.445.txt'
+    else:
+        raise ValueError('Invalid phylo method {}'.format(phylo_method))
+
     with open(cluster_fname) as f:
         f.readline()
         for line in f:
@@ -60,7 +70,7 @@ def hiv_purity():
 
 if __name__ == '__main__':
     tprint('Flu HA...')
-    flu_purity()
+    flu_purity(sys.argv[1])
 
     tprint('HIV Env...')
-    hiv_purity()
+    hiv_purity(sys.argv[1])

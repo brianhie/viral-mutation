@@ -19,7 +19,6 @@ clustal \
     --clustering-out target/flu/clusters/clustal_omega.cluster.txt \
     -o target/flu/clusters/clustal_omega.align.txt --outfmt clu \
     > clustalomega_flu.log 2>&1
-
 clustal \
     -i data/hiv/all.fa \
     --threads 40 \
@@ -27,6 +26,13 @@ clustal \
     --clustering-out target/hiv/clusters/clustal_omega.cluster.txt \
     -o target/hiv/clusters/clustal_omega.align.txt --outfmt clu \
     > clustalomega_hiv.log 2>&1
+
+python bin/clustal2newick.py \
+       target/flu/clusters/clustal_omega.guidetree.txt \
+       target/flu/clusters/clustal_omega.newick
+python bin/clustal2newick.py \
+       target/hiv/clusters/clustal_omega.guidetree.txt \
+       target/hiv/clusters/clustal_omega.newick
 
 # RAxML tree
 

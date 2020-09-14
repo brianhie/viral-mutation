@@ -12,7 +12,7 @@ for idx in range(len(records)):
         continue
     seq_set.add(seq)
     record = records[idx]
-    record.id = record.id[:99]
+    record.id = record.id[:99].replace('-', '_')
     record.seq = Seq.Seq(seq)
     new_records.append(record)
 new_records = Align.MultipleSeqAlignment(new_records, alphabet=Gapped(IUPAC.protein))
