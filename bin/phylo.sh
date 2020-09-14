@@ -51,3 +51,8 @@ raxml -T 40 -m PROTCATBLOSUM62 \
 
 python bin/fasta2nexus.py target/flu/clusters/all_nice.fasta target/flu/clusters/all.nex
 python bin/fasta2nexus.py target/hiv/clusters/all_nice.fasta target/hiv/clusters/all.nex
+
+# FastTree
+
+FastTree -fastest target/flu/clusters/all_nice.fasta > target/flu/clusters/fasttree.tree
+FastTree -fastest target/hiv/clusters/all_nice.fasta > target/hiv/clusters/fasttree.tree

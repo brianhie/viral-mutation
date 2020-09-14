@@ -1,8 +1,15 @@
 from utils import *
 
-def load_phylo():
+def load_phylo(namespace=None):
+    if namespace is None:
+        name = 'phylo'
+        namespace = ''
+    else:
+        name = namespace
+        namespace = '_' + namespace
+
     data = []
-    with open('cluster_purity.log') as f:
+    with open('cluster_purity{}.log'.format(namespace)) as f:
         for line in f:
             line = ' | '.join(line.split(' | ')[1:]).rstrip()
             if line.startswith('Flu HA'):
@@ -21,7 +28,7 @@ def load_phylo():
                 fields = line.split()
                 cluster = fields[1].rstrip(',')
                 value = float(fields[-1])
-                data.append([ virus, entry, 'phylo', cluster, value ])
+                data.append([ virus, entry, name, cluster, value ])
     return data
 
 def load_louvain(virus):
@@ -39,7 +46,18 @@ def load_louvain(virus):
     return data
 
 if __name__ == '__main__':
-    data = load_phylo() + load_louvain('flu') + load_louvain('hiv')
+    data = load_phylo('mafft') + \
+           load_phylo('mafft_sl') + \
+           load_phylo('clustalomega') + \
+           load_phylo('clustalomega_sl') + \
+           load_phylo('mrbayes') + \
+           load_phylo('mrbayes_sl') + \
+           load_phylo('raxml') + \
+           load_phylo('raxml_sl') + \
+           load_phylo('fasttree') + \
+           load_phylo('fasttree_sl') + \
+           load_louvain('flu') + \
+           load_louvain('hiv')
     df = pd.DataFrame(data, columns=[
         'virus', 'entry', 'cluster_type', 'cluster', 'value'
     ])
@@ -56,14 +74,6 @@ if __name__ == '__main__':
             sns.barplot(data=df_subset, x='cluster_type', y='value',
                         capsize=0.5)
             plt.title('{} {}'.format(virus, entry))
-            plt.ylim([ 0.75, 1.05 ])
+            plt.ylim([ 0.65, 1.05 ])
             plt.savefig('figures/cluster_purity_{}_{}.svg'
                         .format(virus, entry))
-
-            phylo = df_subset[df_subset['cluster_type'] == 'phylo'].value
-            louvain = df_subset[df_subset['cluster_type'] == 'louvain'].value
-
-            print('{} {}'.format(virus, entry))
-            print('t-test t = {}, P = {}'
-                  .format(*ss.ttest_ind(phylo, louvain)))
-            print('')
