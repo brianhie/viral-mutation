@@ -20,16 +20,22 @@ def compute_p(true_val, n_interest, n_total, n_permutations=10000):
     return sum(null_distribution >= true_val) / n_permutations
 
 def cached_escape(cache_fname, beta, plot=True, namespace='semantics'):
+    from escape import load_greaney2020
+    sig = load_greaney2020()[2]
+
     prob, change, escape_idx, viable_idx = [], [], [], []
     with open(cache_fname) as f:
         f.readline()
         for line in f:
             fields = line.rstrip().split('\t')
             pos = int(fields[0])
+            if pos < 318 or pos > 540:
+                continue
             prob.append(float(fields[3]))
             change.append(float(fields[4]))
             viable_idx.append(fields[5] == 'True')
-            escape_idx.append(fields[6] == 'True')
+            escape_idx.append((pos, fields[1], fields[2]) in sig)
+            #escape_idx.append(fields[6] == 'True')
 
     prob, orig_prob = np.array(prob), np.array(prob)
     change, orig_change  = np.array(change), np.array(change)

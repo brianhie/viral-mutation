@@ -299,13 +299,12 @@ if __name__ == '__main__':
 
         tprint('To et al. 2020...')
         wt_seq, mutants = load_to2020()
-        #analyze_reinfection(args, model, seqs, vocabulary, wt_seq, mutants,
-        #                    namespace='to2020')
-        #plot_reinfection(namespace='to2020')
+        analyze_reinfection(args, model, seqs, vocabulary, wt_seq, mutants,
+                            namespace='to2020')
+        plot_reinfection(namespace='to2020')
         null_combinatorial_fitness(args, model, seqs, vocabulary,
                                    wt_seq, mutants, n_permutations=100000000,
                                    namespace='to2020')
-        exit()
 
         tprint('Positive controls...')
         wt_seq, mutants = load_ratg13()

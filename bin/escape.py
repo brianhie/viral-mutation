@@ -148,7 +148,7 @@ def load_baum2020():
 
     return seq, seqs_escape
 
-def load_greaney2020(survival_cutoff=0.2):
+def load_greaney2020(survival_cutoff=0.3, binding_cutoff=-.4, expr_cutoff=-.4):
     seq = SeqIO.read('data/cov/cov2_spike_wt.fasta', 'fasta').seq
 
     sig_sites = set()
@@ -158,6 +158,28 @@ def load_greaney2020(survival_cutoff=0.2):
             fields = line.rstrip().split(',')
             sig_sites.add(int(fields[1]) - 1)
 
+    binding = {}
+    with open('data/cov/starr2020cov2/single_mut_effects.csv') as f:
+        f.readline()
+        for line in f:
+            fields = line.rstrip().split(',')
+            pos = float(fields[1]) - 1
+            aa_orig = fields[2].strip('"')
+            aa_mut = fields[3].strip('"')
+            if aa_mut == '*':
+                continue
+            if fields[8] == 'NA':
+                score = float('-inf')
+            else:
+                score = float(fields[8])
+            if fields[11] == 'NA':
+                expr = float('-inf')
+            else:
+                expr = float(fields[11])
+            binding[(pos, aa_orig, aa_mut)] = score, expr
+
+    x, y = [], []
+    sig = set()
     seqs_escape = {}
     with open('data/cov/greaney2020cov2/escape_fracs.csv') as f:
         f.readline() # Consume header.
@@ -173,15 +195,22 @@ def load_greaney2020(survival_cutoff=0.2):
             assert(len(seq) == len(escaped))
             if escaped not in seqs_escape:
                 seqs_escape[escaped] = []
+            significant = (
+                escape_frac > survival_cutoff and
+                pos in sig_sites and
+                binding[(pos, aa_orig, aa_mut)][0] > binding_cutoff and
+                binding[(pos, aa_orig, aa_mut)][1] > expr_cutoff
+            )
             seqs_escape[escaped].append({
                 'pos': pos,
                 'frac_survived': escape_frac,
                 'antibody': antibody,
-                'significant': (escape_frac > survival_cutoff and
-                                pos in sig_sites),
+                'significant': significant,
             })
+            if significant:
+                sig.add((pos, aa_orig, aa_mut))
 
-    return seq, seqs_escape
+    return seq, seqs_escape, sig
 
 if __name__ == '__main__':
     load_doud2018()
