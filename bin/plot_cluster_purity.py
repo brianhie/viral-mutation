@@ -9,7 +9,7 @@ def load_phylo(namespace=None):
         namespace = '_' + namespace
 
     data = []
-    with open('cluster_purity{}.log'.format(namespace)) as f:
+    with open('target/log/cluster_purity{}.log'.format(namespace)) as f:
         for line in f:
             line = ' | '.join(line.split(' | ')[1:]).rstrip()
             if line.startswith('Flu HA'):

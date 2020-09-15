@@ -38,12 +38,12 @@ python bin/clustal2newick.py \
 
 python bin/fasta2phylip.py target/flu/clusters/all_nice.fasta target/flu/clusters/all.phylip
 python bin/fasta2phylip.py target/hiv/clusters/all_nice.fasta target/hiv/clusters/all.phylip
-raxml -T 40 -m PROTCATBLOSUM62 \
-      -s target/flu/clusters/all.phylip -f d \
+raxml -T 40 -D -F -m PROTCATBLOSUM62 \
+      -s target/flu/clusters/all.phylip -f E \
       -n raxml_flu.tree -p 1 \
       > raxml_flu.log 2>&1
-raxml -T 40 -m PROTCATBLOSUM62 \
-      -s target/hiv/clusters/all.phylip -f d \
+raxml -T 40 -D -F -m PROTCATBLOSUM62 \
+      -s target/hiv/clusters/all.phylip -f E \
       -n raxml_hiv.tree -p 1 \
       > raxml_hiv.log 2>&1
 

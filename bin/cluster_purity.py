@@ -6,7 +6,10 @@ def print_purity(metas, entries):
         cluster2entry = {}
         for accession in metas:
             meta = metas[accession]
-            cluster = meta['cluster']
+            try:
+                cluster = meta['cluster']
+            except:
+                continue
             if cluster not in cluster2entry:
                 cluster2entry[cluster] = []
             cluster2entry[cluster].append(meta[entry])
@@ -32,6 +35,14 @@ def flu_purity(phylo_method='mafft'):
         cluster_fname = 'target/flu/clusters/clustal_omega_clusters_0.382.txt'
     elif phylo_method == 'clustalomega_sl':
         cluster_fname = 'target/flu/clusters/clustal_omega_singlelink_0.3.txt'
+    elif phylo_method == 'mrbayes':
+        cluster_fname = 'target/flu/clusters/mrbayes_clusters_125.txt'
+    elif phylo_method == 'mrbayes_sl':
+        cluster_fname = 'target/flu/clusters/mrbayes_singlelink_0.25.txt'
+    elif phylo_method == 'raxml':
+        cluster_fname = 'target/flu/clusters/raxml_clusters_0.1.txt'
+    elif phylo_method == 'raxml_sl':
+        cluster_fname = 'target/flu/clusters/raxml_singlelink_0.56.txt'
     elif phylo_method == 'fasttree':
         cluster_fname = 'target/flu/clusters/fasttree_clusters_5.001.txt'
     elif phylo_method == 'fasttree_sl':
@@ -47,11 +58,9 @@ def flu_purity(phylo_method='mafft'):
             fields = line.rstrip().split()
             if 'mafft' in phylo_method:
                 accession = fields[0].split('_')[2]
-                cluster = fields[1]
                 metas[accession]['cluster'] = fields[1]
             else:
                 accession = fields[0].split('_')[1]
-                cluster = fields[1]
                 metas[accession]['cluster'] = fields[1]
 
     print_purity(metas, [ 'Subtype', 'Host Species' ])
@@ -71,6 +80,18 @@ def hiv_purity(phylo_method='mafft'):
         cluster_fname = 'target/hiv/clusters/clustal_omega_clusters_0.552.txt'
     elif phylo_method == 'clustalomega_sl':
         cluster_fname = 'target/hiv/clusters/clustal_omega_singelink_0.49.txt'
+    elif phylo_method == 'mrbayes':
+        cluster_fname = 'target/hiv/clusters/mrbayes_clusters_4.1.txt'
+    elif phylo_method == 'mrbayes_sl':
+        cluster_fname = 'target/hiv/clusters/mrbayes_singlelink_0.125.txt'
+    elif phylo_method == 'raxml':
+        cluster_fname = 'target/hiv/clusters/raxml_clusters_0.77.txt'
+    elif phylo_method == 'raxml_sl':
+        cluster_fname = 'target/hiv/clusters/raxml_singlelink_12.txt'
+    elif phylo_method == 'fasttree':
+        cluster_fname = 'target/hiv/clusters/fasttree_clusters_1.71.txt'
+    elif phylo_method == 'fasttree_sl':
+        cluster_fname = 'target/hiv/clusters/fasttree_singlelink_0.64.txt'
     else:
         raise ValueError('Invalid phylo method {}'.format(phylo_method))
 
