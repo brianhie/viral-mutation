@@ -148,7 +148,8 @@ def load_baum2020():
 
     return seq, seqs_escape
 
-def load_greaney2020(survival_cutoff=0.3, binding_cutoff=-.4, expr_cutoff=-.4):
+def load_greaney2020(survival_cutoff=0.3,
+                     binding_cutoff=-0.4, expr_cutoff=-0.4):
     seq = SeqIO.read('data/cov/cov2_spike_wt.fasta', 'fasta').seq
 
     sig_sites = set()
@@ -178,8 +179,6 @@ def load_greaney2020(survival_cutoff=0.3, binding_cutoff=-.4, expr_cutoff=-.4):
                 expr = float(fields[11])
             binding[(pos, aa_orig, aa_mut)] = score, expr
 
-    x, y = [], []
-    sig = set()
     seqs_escape = {}
     with open('data/cov/greaney2020cov2/escape_fracs.csv') as f:
         f.readline() # Consume header.
@@ -207,10 +206,8 @@ def load_greaney2020(survival_cutoff=0.3, binding_cutoff=-.4, expr_cutoff=-.4):
                 'antibody': antibody,
                 'significant': significant,
             })
-            if significant:
-                sig.add((pos, aa_orig, aa_mut))
 
-    return seq, seqs_escape, sig
+    return seq, seqs_escape
 
 if __name__ == '__main__':
     load_doud2018()
