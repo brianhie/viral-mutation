@@ -243,7 +243,9 @@ if __name__ == '__main__':
 
     model, seqs = setup(args)
 
-    if args.checkpoint is not None:
+    if 'esm' in args.model_name:
+        args.checkpoint = args.model_name
+    elif args.checkpoint is not None:
         model.model_.load_weights(args.checkpoint)
         tprint('Model summary:')
         tprint(model.model_.summary())

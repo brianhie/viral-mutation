@@ -1,12 +1,14 @@
 from utils import *
 
 import torch
-import esm
 from esm import Alphabet, FastaBatchedDataset, ProteinBertModel, pretrained
 
-def predict_sequence_prob(seqs, alphabet, model, repr_layers,
-                          batch_size=4096, verbose=False):
-    labels = [ 'seq' + str(i) for i in range(len(seqs)) ]
+def predict_sequence_prob_fb(
+        seq, alphabet, model, repr_layers,
+        batch_size=4096, verbose=False
+):
+    seqs = [ seq ]
+    labels = [ 'seq0' ]
 
     dataset = FastaBatchedDataset(labels, seqs)
     batches = dataset.get_batch_indices(batch_size, extra_toks_per_seq=1)
@@ -22,10 +24,12 @@ def predict_sequence_prob(seqs, alphabet, model, repr_layers,
             out = model(toks, repr_layers=repr_layers, return_contacts=False)
             logits = out["logits"].to(device="cpu")
 
-    return logits.numpy()
+    return logits.numpy()[0]
 
-def embed_seqs(model, seqs, repr_layers, alphabet,
-               batch_size=4096, use_cache=False, verbose=True):
+def embed_seqs_fb(
+        model, seqs, repr_layers, alphabet,
+        batch_size=4096, use_cache=False, verbose=True
+):
     labels = [ 'seq' + str(i) for i in range(len(seqs)) ]
 
     dataset = FastaBatchedDataset(labels, seqs)
@@ -71,8 +75,8 @@ def fb_semantics(model, repr_layers, alphabet, seq_to_mutate, escape_seqs,
         if plot_namespace is None:
             plot_namespace = namespace
 
-    y_pred = predict_sequence_prob(
-        [ seq_to_mutate ], alphabet, model, repr_layers,
+    y_pred = predict_sequence_prob_fb(
+        seq_to_mutate, alphabet, model, repr_layers,
         verbose=verbose
     )
 
@@ -91,7 +95,7 @@ def fb_semantics(model, repr_layers, alphabet, seq_to_mutate, escape_seqs,
                 continue
             if seq_to_mutate[i] == word:
                 continue
-            prob = y_pred[0, i + 1, word2idx[word]]
+            prob = y_pred[i + 1, word2idx[word]]
             word_pos_prob[(word, i)] = 10 ** prob
 
     prob_seqs = { seq_to_mutate: [ { 'word': None, 'pos': None } ] }
@@ -104,7 +108,7 @@ def fb_semantics(model, repr_layers, alphabet, seq_to_mutate, escape_seqs,
 
     seqs = np.array([ str(seq) for seq in sorted(seq_prob.keys()) ])
 
-    base_embedding = embed_seqs(
+    base_embedding = embed_seqs_fb(
         model, [ seq_to_mutate ], repr_layers, alphabet,
         use_cache=False, verbose=False
     )[seq_to_mutate][0]['embedding']
@@ -122,7 +126,7 @@ def fb_semantics(model, repr_layers, alphabet, seq_to_mutate, escape_seqs,
         prob_seqs_batch = [
             seq for seq in seqs[start:end] if seq != seq_to_mutate
         ]
-        prob_seqs_batch = embed_seqs(
+        prob_seqs_batch = embed_seqs_fb(
             model, prob_seqs_batch, repr_layers, alphabet,
             use_cache=False, verbose=False
         )
