@@ -184,14 +184,18 @@ if __name__ == '__main__':
 
     tprint('Lee et al. 2018...')
     seq_to_mutate, escape_seqs = load_doud2018()
-    fb_semantics(model, repr_layers, alphabet, seq_to_mutate, escape_seqs,
-                 plot_namespace='flu_h1')
+    fb_semantics(
+        model, repr_layers, alphabet, seq_to_mutate, escape_seqs,
+        comb_batch=2000, plot_namespace='flu_h1'
+    )
 
     tprint('')
     tprint('Lee et al. 2019...')
     seq_to_mutate, escape_seqs = load_lee2019()
-    fb_semantics(model, repr_layers, alphabet, seq_to_mutate, escape_seqs,
-                 plot_namespace='flu_h3')
+    fb_semantics(
+        model, repr_layers, alphabet, seq_to_mutate, escape_seqs,
+        comb_batch=2000, plot_namespace='flu_h3'
+    )
 
     tprint('')
     tprint('Dingens et al. 2019...')
@@ -201,7 +205,7 @@ if __name__ == '__main__':
     fb_semantics(
         model, repr_layers, alphabet, seq_to_mutate, escape_seqs,
         min_pos=min_pos, max_pos=max_pos, plot_acquisition=True,
-        plot_namespace='hiv',
+        comb_batch=2000, plot_namespace='hiv',
     )
 
     tprint('')
@@ -209,7 +213,7 @@ if __name__ == '__main__':
     seq_to_mutate, escape_seqs = load_baum2020()
     fb_semantics(
         model, repr_layers, alphabet, seq_to_mutate, escape_seqs,
-        comb_batch=10000, plot_acquisition=True,
+        comb_batch=2000, plot_acquisition=True,
         plot_namespace='cov2',
     )
 
@@ -218,6 +222,6 @@ if __name__ == '__main__':
     seq_to_mutate, escape_seqs = load_greaney2020()
     fb_semantics(
         model, repr_layers, alphabet, seq_to_mutate, escape_seqs,
-        comb_batch=10000, min_pos=318, max_pos=540, # Restrict to RBD.
+        comb_batch=2000, min_pos=318, max_pos=540, # Restrict to RBD.
         plot_acquisition=True, plot_namespace='cov2rbd'
     )
