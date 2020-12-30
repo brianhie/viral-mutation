@@ -34,6 +34,8 @@ def parse_args():
                         help='Analyze combinatorial fitness')
     parser.add_argument('--reinfection', action='store_true',
                         help='Analyze reinfection cases')
+    parser.add_argument('--ukmut', action='store_true',
+                        help='Analyze reinfection cases')
     args = parser.parse_args()
     return args
 
@@ -231,6 +233,49 @@ def analyze_embedding(args, model, seqs, vocabulary):
     plot_umap(adata_cov2, [ 'host', 'group', 'country' ],
               namespace='cov7')
 
+def analyze_uk_mutation(args, model, seqs, vocabulary):
+    mutations = [
+        'H69del', 'V70del', 'N501Y', 'A570D',
+        'P681H', 'T716I', 'S982A',  'D1118H'
+    ]
+
+    wt_seq = str(SeqIO.read('data/cov/cov2_spike_wt.fasta', 'fasta').seq)
+
+    indiv_muts, mut_seq = [], wt_seq[:]
+    for mutation in mutations:
+        aa_orig = mutation[0]
+        if 'del' in mutation:
+            aa_pos = int(mutation[1:-3]) - 1
+            aa_mut = '-'
+        else:
+            aa_pos = int(mutation[1:-1]) - 1
+            aa_mut = mutation[-1]
+        assert(mut_seq[aa_pos] == aa_orig)
+        mut_seq = mut_seq[:aa_pos] + aa_mut + mut_seq[aa_pos + 1:]
+    mut_seq = mut_seq.replace('-', '')
+
+    seqs[mut_seq] = [ { 'strain': 'SARS-CoV-2' } ]
+
+    seqs = embed_seqs(
+        args, model, seqs, vocabulary, use_cache=True, namespace='cov2_ukmut'
+    )
+    wt_embedding = seqs[wt_seq][0]['embedding']
+
+    null_changes = [
+        np.norm(seqs[seq][0]['embedding'] - wt_embedding)
+        for seq in seqs
+        if ((seqs[seq][0]['strain'] == 'SARS-CoV-2' or
+            'hCoV-19' in seqs[seq][0]['strain']) and
+            seq != wt_seq)
+    ]
+
+    mut_change = np.norm(seqs[mut_seq][0]['embedding'] - wt_embedding)
+
+    print('Change percentile: {}%'.format(
+        ss.percentileofscore(null_changes, mut_change)
+    ))
+
+
 if __name__ == '__main__':
     args = parse_args()
 
@@ -286,6 +331,10 @@ if __name__ == '__main__':
                           plot_namespace='cov2rbd')
 
     if args.combfit:
+        if args.checkpoint is None and not args.train:
+            raise ValueError('Model must be trained or loaded '
+                             'from checkpoint.')
+
         from combinatorial_fitness import load_starr2020
         tprint('Starr et al. 2020...')
         wt_seqs, seqs_fitness = load_starr2020()
@@ -296,6 +345,10 @@ if __name__ == '__main__':
                                  comb_batch=10000, prob_cutoff=0., beta=1.)
 
     if args.reinfection:
+        if args.checkpoint is None and not args.train:
+            raise ValueError('Model must be trained or loaded '
+                             'from checkpoint.')
+
         from reinfection import load_to2020, load_ratg13, load_sarscov1
         from plot_reinfection import plot_reinfection
 
@@ -317,3 +370,10 @@ if __name__ == '__main__':
         analyze_reinfection(args, model, seqs, vocabulary, wt_seq, mutants,
                             namespace='sarscov1')
         plot_reinfection(namespace='sarscov1')
+
+    if args.ukmut:
+        if args.checkpoint is None and not args.train:
+            raise ValueError('Model must be trained or loaded '
+                             'from checkpoint.')
+
+        analyze_uk_mutation(args, model, seqs, vocabulary)
