@@ -262,18 +262,38 @@ def analyze_uk_mutation(args, model, seqs, vocabulary):
     wt_embedding = seqs[wt_seq][0]['embedding']
 
     null_changes = [
-        np.norm(seqs[seq][0]['embedding'] - wt_embedding)
+        np.linalg.norm(seqs[seq][0]['embedding'].mean(0) - wt_embedding.mean(0))
         for seq in seqs
         if ((seqs[seq][0]['strain'] == 'SARS-CoV-2' or
             'hCoV-19' in seqs[seq][0]['strain']) and
-            seq != wt_seq)
+            seq != wt_seq and seq != mut_seq)
     ]
 
-    mut_change = np.norm(seqs[mut_seq][0]['embedding'] - wt_embedding)
+    mut_change = np.linalg.norm(seqs[mut_seq][0]['embedding'].mean(0) -
+                                wt_embedding.mean(0))
 
     print('Change percentile: {}%'.format(
         ss.percentileofscore(null_changes, mut_change)
     ))
+
+    for mutation in mutations:
+        aa_orig = mutation[0]
+        if 'del' in mutation:
+            aa_pos = int(mutation[1:-3]) - 1
+            aa_mut = '-'
+        else:
+            aa_pos = int(mutation[1:-1]) - 1
+            aa_mut = mutation[-1]
+        assert(wt_seq[aa_pos] == aa_orig)
+        mut_seq = wt_seq[:aa_pos] + aa_mut + wt_seq[aa_pos + 1:]
+        mut_seq = mut_seq.replace('-', '')
+
+        embedding = embed_seqs(
+            args, model, { mut_seq: [ {} ] }, vocabulary, verbose=False,
+        )[mut_seq][0]['embedding']
+        change = np.linalg.norm(embedding.mean(0) - wt_embedding.mean(0))
+
+        print('Mutation {}: {}'.format(mutation, change))
 
 
 if __name__ == '__main__':
