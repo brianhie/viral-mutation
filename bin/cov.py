@@ -260,7 +260,7 @@ def analyze_uk_mutation(args, model, seqs, vocabulary):
         'D80A', 'D215G', 'K417N', 'E484K', 'N501Y', 'A701V'
     ]
     andreano_mutations = [
-        'F140del', 'E484K', 'Y248|insKTRNKSTSRRE248|L249'
+        'F140del', 'E484K', 'Y248|insKTRNKSTSRRE|L249'
     ]
 
     names = [ 'uk', 'sa', 'andreano' ]
@@ -268,31 +268,39 @@ def analyze_uk_mutation(args, model, seqs, vocabulary):
 
     wt_seq = str(SeqIO.read('data/cov/cov2_spike_wt.fasta', 'fasta').seq)
 
+    seqs = embed_seqs(
+        args, model, seqs, vocabulary, use_cache=True, namespace='cov2_null'
+    )
+    wt_embedding = seqs[wt_seq][0]['embedding']
+
+    sorted_seqs = sorted([
+        seq for seq in seqs
+        if ((seqs[seq][0]['strain'] == 'SARS-CoV-2' or
+             'hCoV-19' in seqs[seq][0]['strain']) and
+            seq != wt_seq and seq.startswith('M'))
+    ])
+
+    null_changes = np.array([
+        np.linalg.norm(seqs[seq][0]['embedding'].mean(0) - wt_embedding.mean(0))
+        for seq in sorted_seqs
+    ])
+
     for name, mutations in zip(names, mutations_list):
 
         mut_seq = make_mutant(wt_seq, mutations)
 
-        seqs = embed_seqs(
-            args, model, seqs, vocabulary, use_cache=True, namespace='cov2_ukmut'
-        )
-        wt_embedding = seqs[wt_seq][0]['embedding']
         mut_embedding = embed_seqs(
-            args, model, { mut_seq: [ {} ] }, vocabulary,
+            args, model, { mut_seq: [ {} ] }, vocabulary, verbose=False,
         )[mut_seq][0]['embedding']
-
-        null_changes = [
-            np.linalg.norm(seqs[seq][0]['embedding'].mean(0) - wt_embedding.mean(0))
-            for seq in seqs
-            if ((seqs[seq][0]['strain'] == 'SARS-CoV-2' or
-                'hCoV-19' in seqs[seq][0]['strain']) and
-                seq != wt_seq and seq != mut_seq)
-        ]
 
         mut_change = np.linalg.norm(mut_embedding.mean(0) - wt_embedding.mean(0))
 
         print('{}: Change percentile = {}%'.format(
             name, ss.percentileofscore(null_changes, mut_change)
         ))
+
+        for idx in np.argwhere(null_changes > mut_change).ravel():
+            print('\t' + sorted_seqs[idx])
 
         for mutation in mutations:
             mut_seq = make_mutant(wt_seq, [ mutation ])
