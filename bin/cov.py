@@ -233,67 +233,74 @@ def analyze_embedding(args, model, seqs, vocabulary):
     plot_umap(adata_cov2, [ 'host', 'group', 'country' ],
               namespace='cov7')
 
-def analyze_uk_mutation(args, model, seqs, vocabulary):
-    mutations = [
-        'H69del', 'V70del', 'N501Y', 'A570D',
-        'P681H', 'T716I', 'S982A',  'D1118H'
-    ]
-
-    wt_seq = str(SeqIO.read('data/cov/cov2_spike_wt.fasta', 'fasta').seq)
-
+def make_mutant(wt_seq, mutations):
     indiv_muts, mut_seq = [], wt_seq[:]
     for mutation in mutations:
         aa_orig = mutation[0]
         if 'del' in mutation:
             aa_pos = int(mutation[1:-3]) - 1
             aa_mut = '-'
+        elif '|' in mutation and 'ins' in mutation:
+            aa_pos = int(mutation.split('|')[0][1:]) - 1
+            aa_mut = mutation.split('|')[1][3:]
         else:
             aa_pos = int(mutation[1:-1]) - 1
             aa_mut = mutation[-1]
         assert(mut_seq[aa_pos] == aa_orig)
         mut_seq = mut_seq[:aa_pos] + aa_mut + mut_seq[aa_pos + 1:]
     mut_seq = mut_seq.replace('-', '')
+    return mut_seq
 
-    seqs[mut_seq] = [ { 'strain': 'SARS-CoV-2' } ]
-
-    seqs = embed_seqs(
-        args, model, seqs, vocabulary, use_cache=True, namespace='cov2_ukmut'
-    )
-    wt_embedding = seqs[wt_seq][0]['embedding']
-
-    null_changes = [
-        np.linalg.norm(seqs[seq][0]['embedding'].mean(0) - wt_embedding.mean(0))
-        for seq in seqs
-        if ((seqs[seq][0]['strain'] == 'SARS-CoV-2' or
-            'hCoV-19' in seqs[seq][0]['strain']) and
-            seq != wt_seq and seq != mut_seq)
+def analyze_uk_mutation(args, model, seqs, vocabulary):
+    uk_mutations = [
+        'H69del', 'V70del', 'Y145del', 'N501Y', 'A570D',
+        'P681H', 'T716I', 'S982A',  'D1118H'
+    ]
+    sa_mutations = [
+        'D80A', 'D215G', 'K417N', 'E484K', 'N501Y', 'A701V'
+    ]
+    andreano_mutations = [
+        'F140del', 'E484K', 'Y248|insKTRNKSTSRRE248|L249'
     ]
 
-    mut_change = np.linalg.norm(seqs[mut_seq][0]['embedding'].mean(0) -
-                                wt_embedding.mean(0))
+    names = [ 'uk', 'sa', 'andreano' ]
+    mutations_list = [ uk_mutations, sa_mutations, andreano_mutations ]
 
-    print('Change percentile: {}%'.format(
-        ss.percentileofscore(null_changes, mut_change)
-    ))
+    wt_seq = str(SeqIO.read('data/cov/cov2_spike_wt.fasta', 'fasta').seq)
 
-    for mutation in mutations:
-        aa_orig = mutation[0]
-        if 'del' in mutation:
-            aa_pos = int(mutation[1:-3]) - 1
-            aa_mut = '-'
-        else:
-            aa_pos = int(mutation[1:-1]) - 1
-            aa_mut = mutation[-1]
-        assert(wt_seq[aa_pos] == aa_orig)
-        mut_seq = wt_seq[:aa_pos] + aa_mut + wt_seq[aa_pos + 1:]
-        mut_seq = mut_seq.replace('-', '')
+    for name, mutations in zip(names, mutations_list):
 
-        embedding = embed_seqs(
-            args, model, { mut_seq: [ {} ] }, vocabulary, verbose=False,
+        mut_seq = make_mutant(wt_seq, mutations)
+
+        seqs = embed_seqs(
+            args, model, seqs, vocabulary, use_cache=True, namespace='cov2_ukmut'
+        )
+        wt_embedding = seqs[wt_seq][0]['embedding']
+        mut_embedding = embed_seqs(
+            args, model, { mut_seq: [ {} ] }, vocabulary,
         )[mut_seq][0]['embedding']
-        change = np.linalg.norm(embedding.mean(0) - wt_embedding.mean(0))
 
-        print('Mutation {}: {}'.format(mutation, change))
+        null_changes = [
+            np.linalg.norm(seqs[seq][0]['embedding'].mean(0) - wt_embedding.mean(0))
+            for seq in seqs
+            if ((seqs[seq][0]['strain'] == 'SARS-CoV-2' or
+                'hCoV-19' in seqs[seq][0]['strain']) and
+                seq != wt_seq and seq != mut_seq)
+        ]
+
+        mut_change = np.linalg.norm(mut_embedding.mean(0) - wt_embedding.mean(0))
+
+        print('{}: Change percentile = {}%'.format(
+            name, ss.percentileofscore(null_changes, mut_change)
+        ))
+
+        for mutation in mutations:
+            mut_seq = make_mutant(wt_seq, [ mutation ])
+            embedding = embed_seqs(
+                args, model, { mut_seq: [ {} ] }, vocabulary, verbose=False,
+            )[mut_seq][0]['embedding']
+            change = np.linalg.norm(embedding.mean(0) - wt_embedding.mean(0))
+            print('\tMutation {}: {}'.format(mutation, change))
 
 
 if __name__ == '__main__':

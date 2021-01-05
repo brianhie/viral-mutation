@@ -203,6 +203,7 @@ def embed_seqs(args, model, seqs, vocabulary,
     if use_cache and os.path.exists(embed_fname):
         X_embed = np.load(embed_fname, allow_pickle=True)
     else:
+        model.verbose_ = verbose
         X_embed = model.transform(X_cat, lengths, embed_fname)
         if use_cache:
             np.save(embed_fname, X_embed)
