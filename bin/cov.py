@@ -251,6 +251,47 @@ def make_mutant(wt_seq, mutations):
     mut_seq = mut_seq.replace('-', '')
     return mut_seq
 
+def grammaticality_change(word_pos_prob, seq, mutations, args, vocabulary, model,
+                          verbose=False,):
+    if len(mutations) == 0:
+        return 0
+
+    mut_probs = []
+    for mutation in mutations:
+        if 'del' in mutation or 'ins' in mutation:
+            continue
+        aa_orig = mutation[0]
+        aa_pos = int(mutation[1:-1]) - 1
+        aa_mut = mutation[-1]
+        if (seq[aa_pos] != aa_orig):
+            print(mutation)
+        assert(seq[aa_pos] == aa_orig)
+        mut_probs.append(word_pos_prob[(aa_mut, aa_pos)])
+
+    return np.mean(np.log10(mut_probs))
+
+def get_mutations(seq1, seq2):
+    mutations = []
+    from Bio import pairwise2
+    alignment = pairwise2.align.globalms(
+        seq1, seq2, 5, -4, -3, -.1, one_alignment_only=True,
+    )[0]
+    pos = 0
+    for ch1, ch2 in zip(alignment[0], alignment[1]):
+        if ch1 != ch2 and ch1 != '-' and ch2 != '-':
+            mutations.append('{}{}{}'.format(ch1, pos + 1, ch2))
+        if ch1 != '-':
+            pos += 1
+    return mutations
+
+def get_escape_potential(gramm, change, null_gramm, null_change):
+    assert(len(null_gramm) == len(null_change))
+    count = 0.
+    for ng, nc in zip(null_gramm, null_change):
+        if ng >= gramm and nc >= change:
+            count += 1.
+    return count / len(null_gramm)
+
 def analyze_uk_mutation(args, model, seqs, vocabulary):
     uk_mutations = [
         'H69del', 'V70del', 'Y145del', 'N501Y', 'A570D',
@@ -263,7 +304,7 @@ def analyze_uk_mutation(args, model, seqs, vocabulary):
         'F140del', 'E484K', 'Y248|insKTRNKSTSRRE|L249'
     ]
 
-    names = [ 'uk', 'sa', 'andreano' ]
+    names = [ 'B.1.1.7 (UK)', 'V501.V2 (SA)', 'PT188-EM (Andreano et al.)' ]
     mutations_list = [ uk_mutations, sa_mutations, andreano_mutations ]
 
     wt_seq = str(SeqIO.read('data/cov/cov2_spike_wt.fasta', 'fasta').seq)
@@ -273,34 +314,70 @@ def analyze_uk_mutation(args, model, seqs, vocabulary):
     )
     wt_embedding = seqs[wt_seq][0]['embedding']
 
+    y_pred = predict_sequence_prob(
+        args, wt_seq, vocabulary, model, verbose=False
+    )
+
+    word_pos_prob = {}
+    for pos in range(len(wt_seq)):
+        for word in vocabulary:
+            word_idx = vocabulary[word]
+            prob = y_pred[pos + 1, word_idx]
+            word_pos_prob[(word, pos)] = prob
+
     sorted_seqs = sorted([
         seq for seq in seqs
         if ((seqs[seq][0]['strain'] == 'SARS-CoV-2' or
              'hCoV-19' in seqs[seq][0]['strain']) and
-            seq != wt_seq and seq.startswith('M'))
+            seq != wt_seq and seq.startswith('M') and seq.endswith('HYT'))
     ])
 
     null_changes = np.array([
         np.linalg.norm(seqs[seq][0]['embedding'].mean(0) - wt_embedding.mean(0))
         for seq in sorted_seqs
     ])
+    null_grammar = np.array([
+        grammaticality_change(word_pos_prob, wt_seq, get_mutations(wt_seq, seq),
+                              args, vocabulary, model)
+        for seq in sorted_seqs
+    ])
+    tprint('Background set of {} sequences'.format(len(null_changes)))
 
+    mut_changes, mut_gramms = [], []
     for name, mutations in zip(names, mutations_list):
 
         mut_seq = make_mutant(wt_seq, mutations)
-
         mut_embedding = embed_seqs(
             args, model, { mut_seq: [ {} ] }, vocabulary, verbose=False,
         )[mut_seq][0]['embedding']
-
         mut_change = np.linalg.norm(mut_embedding.mean(0) - wt_embedding.mean(0))
+        mut_changes.append(mut_change)
+
+        mut_gramm = grammaticality_change(word_pos_prob, wt_seq, mutations,
+                                          args, vocabulary, model)
+        mut_gramms.append(mut_gramm)
+
+        print('{}: Escape percentage = {}%'.format(
+            name, get_escape_potential(mut_gramm, mut_change,
+                                       null_grammar, null_changes)
+        ))
 
         print('{}: Change percentile = {}%'.format(
             name, ss.percentileofscore(null_changes, mut_change)
         ))
-
         for idx in np.argwhere(null_changes > mut_change).ravel():
-            print('\t' + sorted_seqs[idx])
+            print('\tlen: {},\tstart char: {}'.format(len(sorted_seqs[idx]),
+                                                      sorted_seqs[idx][0]))
+            if name == 'andreano':
+                print('\tHigher change mutations:')
+                from Bio import pairwise2
+                alignment = pairwise2.align.globalms(
+                    wt_seq, sorted_seqs[idx], 5, -4, -3, -.1,
+                    one_alignment_only=True,
+                )[0]
+                for idx, (ch1, ch2) in enumerate(zip(alignment[0], alignment[1])):
+                    if ch1 != ch2:
+                        print('\t\t{}{}{}'.format(ch1, idx + 1, ch2))
 
         for mutation in mutations:
             mut_seq = make_mutant(wt_seq, [ mutation ])
@@ -308,8 +385,38 @@ def analyze_uk_mutation(args, model, seqs, vocabulary):
                 args, model, { mut_seq: [ {} ] }, vocabulary, verbose=False,
             )[mut_seq][0]['embedding']
             change = np.linalg.norm(embedding.mean(0) - wt_embedding.mean(0))
-            print('\tMutation {}: {}'.format(mutation, change))
 
+            mut_gramm = grammaticality_change(word_pos_prob, wt_seq, [ mutation ],
+                                              args, vocabulary, model)
+
+            print('\tMutation {}: change = {}, percentile = {}%'.format(
+                mutation, change,
+                ss.percentileofscore(null_changes, change)
+            ))
+
+    plt.figure(figsize=(4, 8))
+    ax = sns.violinplot(data=null_changes, inner=None, color='white')
+    ax = sns.stripplot(data=null_changes, color='#aaaaaa')
+    ax.scatter([ 0 ] * len(mut_changes), mut_changes, color='#800000')
+    for name, change in zip(names, mut_changes):
+        ax.annotate(name, (0.01, change))
+    ax.get_xaxis().set_visible(False)
+    plt.ylabel('Antigenic change')
+    plt.tight_layout()
+    plt.savefig('figures/cov_new_mut.png', dpi=500)
+    plt.close()
+
+    plt.figure()
+    plt.scatter(null_grammar, null_changes, color='#aaaaaa')
+    plt.scatter(mut_gramms, mut_changes, color='#800000')
+    ax = plt.gca()
+    for name, gramm, change in zip(names, mut_gramms, mut_changes):
+        ax.annotate(name, (gramm + 0.1, change))
+    plt.xlabel('Fitness')
+    plt.ylabel('Antigenic change')
+    plt.tight_layout()
+    plt.savefig('figures/cov_new_mut_cscs.png', dpi=500)
+    plt.close()
 
 if __name__ == '__main__':
     args = parse_args()
