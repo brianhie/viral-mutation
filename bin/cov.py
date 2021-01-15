@@ -34,7 +34,7 @@ def parse_args():
                         help='Analyze combinatorial fitness')
     parser.add_argument('--reinfection', action='store_true',
                         help='Analyze reinfection cases')
-    parser.add_argument('--ukmut', action='store_true',
+    parser.add_argument('--newmut', action='store_true',
                         help='Analyze reinfection cases')
     args = parser.parse_args()
     return args
@@ -286,13 +286,13 @@ def get_mutations(seq1, seq2):
 
 def get_escape_potential(gramm, change, null_gramm, null_change):
     assert(len(null_gramm) == len(null_change))
-    count = 0.
+    count = 0
     for ng, nc in zip(null_gramm, null_change):
-        if ng >= gramm and nc >= change:
-            count += 1.
-    return count / len(null_gramm)
+        if ng < gramm or nc < change:
+            count += 1
+    return count / len(null_gramm), len(null_gramm) - count
 
-def analyze_uk_mutation(args, model, seqs, vocabulary):
+def analyze_new_mutations(args, model, seqs, vocabulary):
     uk_mutations = [
         'H69del', 'V70del', 'Y145del', 'N501Y', 'A570D',
         'P681H', 'T716I', 'S982A',  'D1118H'
@@ -304,7 +304,7 @@ def analyze_uk_mutation(args, model, seqs, vocabulary):
         'F140del', 'E484K', 'Y248|insKTRNKSTSRRE|L249'
     ]
 
-    names = [ 'B.1.1.7 (UK)', 'V501.V2 (SA)', 'PT188-EM (Andreano et al.)' ]
+    names = [ 'B.1.1.7', 'V501.V2', 'PT188-EM' ]
     mutations_list = [ uk_mutations, sa_mutations, andreano_mutations ]
 
     wt_seq = str(SeqIO.read('data/cov/cov2_spike_wt.fasta', 'fasta').seq)
@@ -357,14 +357,17 @@ def analyze_uk_mutation(args, model, seqs, vocabulary):
                                           args, vocabulary, model)
         mut_gramms.append(mut_gramm)
 
-        print('{}: Escape percentage = {}%'.format(
-            name, get_escape_potential(mut_gramm, mut_change,
-                                       null_grammar, null_changes)
+        print('{}: Grammar percentile = {}%'.format(
+            name, ss.percentileofscore(null_grammar, mut_gramm)
         ))
-
         print('{}: Change percentile = {}%'.format(
             name, ss.percentileofscore(null_changes, mut_change)
         ))
+        print('{}: Combined percentile = {}, N = {}'.format(
+            name, *get_escape_potential(mut_gramm, mut_change,
+                                        null_grammar, null_changes)
+        ))
+
         for idx in np.argwhere(null_changes > mut_change).ravel():
             print('\tlen: {},\tstart char: {}'.format(len(sorted_seqs[idx]),
                                                       sorted_seqs[idx][0]))
@@ -406,7 +409,7 @@ def analyze_uk_mutation(args, model, seqs, vocabulary):
     plt.savefig('figures/cov_new_mut.png', dpi=500)
     plt.close()
 
-    plt.figure()
+    plt.figure(figsize=(3.5, 8))
     plt.scatter(null_grammar, null_changes, color='#aaaaaa')
     plt.scatter(mut_gramms, mut_changes, color='#800000')
     ax = plt.gca()
@@ -513,9 +516,9 @@ if __name__ == '__main__':
                             namespace='sarscov1')
         plot_reinfection(namespace='sarscov1')
 
-    if args.ukmut:
+    if args.newmut:
         if args.checkpoint is None and not args.train:
             raise ValueError('Model must be trained or loaded '
                              'from checkpoint.')
 
-        analyze_uk_mutation(args, model, seqs, vocabulary)
+        analyze_new_mutations(args, model, seqs, vocabulary)
