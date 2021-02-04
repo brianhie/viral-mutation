@@ -275,12 +275,12 @@ if __name__ == '__main__':
         tprint('Baum et al. 2020...')
         seq_to_mutate, seqs_escape = load_baum2020()
         analyze_semantics(args, model, vocabulary,
-                          seq_to_mutate, seqs_escape, comb_batch=10000,
+                          seq_to_mutate, seqs_escape, comb_batch=5000,
                           prob_cutoff=0, beta=1., plot_acquisition=True,)
         tprint('Greaney et al. 2020...')
         seq_to_mutate, seqs_escape = load_greaney2020()
         analyze_semantics(args, model, vocabulary,
-                          seq_to_mutate, seqs_escape, comb_batch=10000,
+                          seq_to_mutate, seqs_escape, comb_batch=5000,
                           min_pos=318, max_pos=540, # Restrict to RBD.
                           prob_cutoff=0, beta=1., plot_acquisition=True,
                           plot_namespace='cov2rbd')
