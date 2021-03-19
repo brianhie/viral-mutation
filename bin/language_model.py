@@ -244,8 +244,8 @@ class LSTMLanguageModel(LanguageModel):
     ):
         super().__init__(seed=seed,)
 
-        policy = mixed_precision.Policy('mixed_float16')
-        mixed_precision.set_policy(policy)
+        #policy = mixed_precision.Policy('mixed_float16')
+        #mixed_precision.set_policy(policy)
 
         model = Sequential()
         model.add(Embedding(vocab_size + 1, embedding_dim,
@@ -318,8 +318,8 @@ class BiLSTMLanguageModel(LanguageModel):
     ):
         super().__init__(seed=seed,)
 
-        policy = mixed_precision.Policy('mixed_float16')
-        mixed_precision.set_policy(policy)
+        #policy = mixed_precision.Policy('mixed_float16')
+        #mixed_precision.set_policy(policy)
 
         input_pre = Input(shape=(seq_len - 1,))
         input_post = Input(shape=(seq_len - 1,))
@@ -422,8 +422,8 @@ class AttentionLanguageModel(LanguageModel):
     ):
         super().__init__(seed=seed,)
 
-        policy = mixed_precision.Policy('mixed_float16')
-        mixed_precision.set_policy(policy)
+        #policy = mixed_precision.Policy('mixed_float16')
+        #mixed_precision.set_policy(policy)
 
         input_ = Input(shape=(seq_len - 1,))
 
