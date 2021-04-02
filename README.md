@@ -2,6 +2,8 @@
 
 This repository contains the analysis code, links to the data, and pretrained models for the paper ["Learning the language of viral evolution and escape"](https://science.sciencemag.org/content/371/6526/284) by Brian Hie, Ellen Zhong, Bonnie Berger, and Bryan Bryson (2021).
 
+**We have been made aware of a potential issue affecting our AUC computation and benchmarking experiments. The issue is under active investigation and updates will be posted here: https://github.com/brianhie/viral-mutation/issues/5.**
+
 ### Data
 
 You can download the [relevant datasets](http://cb.csail.mit.edu/cb/viral-mutation/data.tar.gz) (including training and validation data) using the commands
