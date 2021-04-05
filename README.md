@@ -2,7 +2,7 @@
 
 This repository contains the analysis code, links to the data, and pretrained models for the paper ["Learning the language of viral evolution and escape"](https://science.sciencemag.org/content/371/6526/284) by Brian Hie, Ellen Zhong, Bonnie Berger, and Bryan Bryson (2021).
 
-**We have been made aware of a potential issue affecting our AUC computation and benchmarking experiments. The issue is under active investigation and updates will be posted here: https://github.com/brianhie/viral-mutation/issues/5.**
+This repository has been updated to resolve an issue regarding the AUC computation and benchmarking experiments. For more details, see: https://github.com/brianhie/viral-mutation/issues/5.
 
 ### Data
 
@@ -107,6 +107,13 @@ Training a new model on coronavirus spike sequences can be done with the command
 ```bash
 python bin/cov.py bilstm --train --test \
     > cov_train.log 2>&1
+```
+
+#### Benchmarking experiments
+
+Performing an AUC sweep to compare CSCS to baseline methods can be done with the command
+```bash
+bash bin/benchmark_escape.sh
 ```
 
 ### Questions
