@@ -111,7 +111,7 @@ python bin/cov.py bilstm --train --test \
 
 #### Benchmarking experiments
 
-Performing an AUC sweep to compare CSCS to baseline methods can be done with the command
+Performing a sweep of escape cutoffs to compare the AUC of CSCS to that of baseline methods can be done with the command
 ```bash
 bash bin/benchmark_escape.sh
 ```
