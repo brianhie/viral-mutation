@@ -9,26 +9,37 @@ def parse_args():
                         help='Benchmarking method to use')
     parser.add_argument('virus', type=str,
                         help='Viral type to test')
+    parser.add_argument('--cutoff', type=float, default=None,
+                        help='Cutoff')
     args = parser.parse_args()
     return args
 
-def load(virus):
+def load(virus, cutoff=None):
     if virus == 'h1':
         from escape import load_doud2018
-        seq, seqs_escape = load_doud2018()
+        if cutoff is None:
+            seq, seqs_escape = load_doud2018()
+        else:
+            seq, seqs_escape = load_doud2018(survival_cutoff=cutoff)
         train_fname = 'target/flu/clusters/all_h1.fasta'
         mut_fname = 'target/flu/mutation/mutations_h1.fa'
         anchor_id = ('gb:LC333185|ncbiId:BBB04702.1|UniProtKB:-N/A-|'
                      'Organism:Influenza')
     elif virus == 'h3':
         from escape import load_lee2019
-        seq, seqs_escape = load_lee2019()
+        if cutoff is None:
+            seq, seqs_escape = load_lee2019()
+        else:
+            seq, seqs_escape = load_lee2019(survival_cutoff=cutoff)
         train_fname = 'target/flu/clusters/all_h3.fasta'
         mut_fname = 'target/flu/mutation/mutations_h3.fa'
         anchor_id = 'Reference_Perth2009_HA_coding_sequence'
     elif virus == 'bg505':
         from escape import load_dingens2019
-        seq, seqs_escape = load_dingens2019()
+        if cutoff is None:
+            seq, seqs_escape = load_dingens2019()
+        else:
+            seq, seqs_escape = load_dingens2019(survival_cutoff=cutoff)
         train_fname = 'target/hiv/clusters/all_BG505.fasta'
         mut_fname = 'target/hiv/mutation/mutations_hiv.fa'
         anchor_id = 'A1.KE.-.BG505_W6M_ENV_C2.DQ208458'
@@ -40,7 +51,10 @@ def load(virus):
         anchor_id = 'YP_009724390.1'
     elif virus == 'cov2rbd':
         from escape import load_greaney2020
-        seq, seqs_escape = load_greaney2020()
+        if cutoff is None:
+            seq, seqs_escape = load_greaney2020()
+        else:
+            seq, seqs_escape = load_greaney2020(survival_cutoff=cutoff)
         train_fname = 'target/cov/clusters/all_sarscov2.fasta'
         mut_fname = 'target/cov/mutation/mutations_sarscov2.fa'
         anchor_id = 'YP_009724390.1'
@@ -61,6 +75,8 @@ def plot_result(rank_vals, escape_idx, virus, fname_prefix,
     norm = max(n_consider) * max(n_escape)
     norm_auc = auc(n_consider, n_escape) / norm
 
+    print(len(n_consider))
+
     escape_frac = len(escape_rank_dist) / float(len(rank_vals))
 
     tprint('Results for {} ({}):'.format(virus, legend_name))
@@ -80,8 +96,8 @@ def plot_result(rank_vals, escape_idx, virus, fname_prefix,
                 .format(virus, fname_prefix), dpi=300)
     plt.close()
 
-def escape_evcouplings(virus, vocabulary):
-    seq, seqs_escape, train_fname, mut_fname, anchor_id = load(virus)
+def escape_evcouplings(virus, vocabulary, cutoff=None):
+    seq, seqs_escape, train_fname, mut_fname, anchor_id = load(virus, cutoff=cutoff)
     if virus == 'h1':
         energy_fname = ('target/flu/evcouplings/flu_h1/mutate/'
                         'flu_h1_single_mutant_matrix.csv')
@@ -123,14 +139,15 @@ def escape_evcouplings(virus, vocabulary):
     for i in range(len(anchor)):
         if virus == 'bg505' and (i < 29 or i > 698):
             continue
-        if virus == 'cov2rbd' and (i < 318 or i > 540):
+        if virus == 'cov2rbd' and (i < 330 or i > 530):
             continue
         for word in vocabulary:
             if anchor[i] == word:
                 continue
             mut_seq = anchor[:i] + word + anchor[i + 1:]
-            if mut_seq in seqs_escape and \
-               (sum([ m['significant'] for m in seqs_escape[mut_seq] ]) > 0):
+            if mut_seq not in seqs_escape:
+                continue
+            if (sum([ m['significant'] for m in seqs_escape[mut_seq] ]) > 0):
                 escape_idx.append(len(mut_scores_epi))
             if (i, word) in pos_aa_score_epi:
                 mut_scores_epi.append(pos_aa_score_epi[(i, word)])
@@ -146,8 +163,8 @@ def escape_evcouplings(virus, vocabulary):
     plot_result(mut_scores_ind, escape_idx, virus, 'evcouplings_ind',
                 legend_name='EVcouplings (independent)')
 
-def escape_freq(virus, vocabulary):
-    seq, seqs_escape, train_fname, mut_fname, anchor_id = load(virus)
+def escape_freq(virus, vocabulary, cutoff=None):
+    seq, seqs_escape, train_fname, mut_fname, anchor_id = load(virus, cutoff=cutoff)
 
     anchor = None
     pos_aa_freq = {}
@@ -172,7 +189,7 @@ def escape_freq(virus, vocabulary):
         if virus == 'bg505' and (real_pos < 29 or real_pos > 698):
             real_pos += 1
             continue
-        if virus == 'cov2rbd' and (real_pos < 318 or real_pos > 540):
+        if virus == 'cov2rbd' and (real_pos < 330 or real_pos > 530):
             real_pos += 1
             continue
         for word in vocabulary:
@@ -180,8 +197,9 @@ def escape_freq(virus, vocabulary):
                 continue
             mut_seq = anchor[:i] + word + anchor[i + 1:]
             mut_seq = mut_seq.replace('-', '')
-            if mut_seq in seqs_escape and \
-               (sum([ m['significant'] for m in seqs_escape[mut_seq] ]) > 0):
+            if mut_seq not in seqs_escape:
+                continue
+            if (sum([ m['significant'] for m in seqs_escape[mut_seq] ]) > 0):
                 escape_idx.append(len(mut_freqs))
             if (i, word) in pos_aa_freq:
                 mut_freqs.append(pos_aa_freq[(i, word)])
@@ -199,7 +217,7 @@ def tape_embed(sequence, model, tokenizer):
     output = model(token_ids)
     return output[0].detach().numpy().mean(1).ravel()
 
-def escape_tape(virus, vocabulary, pretrained='transformer'):
+def escape_tape(virus, vocabulary, pretrained='transformer', cutoff=None):
     if pretrained == 'transformer':
         from tape import ProteinBertModel
         model_class = ProteinBertModel
@@ -217,7 +235,7 @@ def escape_tape(virus, vocabulary, pretrained='transformer'):
     model = model_class.from_pretrained(model_name)
     tokenizer = TAPETokenizer(vocab=vocab)
 
-    seq, seqs_escape, train_fname, mut_fname, anchor_id = load(virus)
+    seq, seqs_escape, train_fname, mut_fname, anchor_id = load(virus, cutoff=cutoff)
     if virus == 'h1':
         embed_fname = ('target/flu/embedding/{}_h1.npz'
                        .format(fname_prefix))
@@ -264,14 +282,15 @@ def escape_tape(virus, vocabulary, pretrained='transformer'):
     for i in range(len(anchor)):
         if virus == 'bg505' and (i < 29 or i > 698):
             continue
-        if virus == 'cov2rbd' and (i < 318 or i > 540):
+        if virus == 'cov2rbd' and (i < 330 or i > 530):
             continue
         for word in vocabulary:
             if anchor[i] == word:
                 continue
             mut_seq = anchor[:i] + word + anchor[i + 1:]
-            if mut_seq in seqs_escape and \
-               (sum([ m['significant'] for m in seqs_escape[mut_seq] ]) > 0):
+            if mut_seq not in seqs_escape:
+                continue
+            if (sum([ m['significant'] for m in seqs_escape[mut_seq] ]) > 0):
                 escape_idx.append(len(changes))
             changes.append(mut2change[mut_seq])
     changes = np.array(changes)
@@ -280,8 +299,8 @@ def escape_tape(virus, vocabulary, pretrained='transformer'):
                 legend_name='TAPE ({})'.format(fname_prefix))
 
 
-def escape_bepler(virus, vocabulary):
-    seq, seqs_escape, train_fname, mut_fname, anchor_id = load(virus)
+def escape_bepler(virus, vocabulary, cutoff=None):
+    seq, seqs_escape, train_fname, mut_fname, anchor_id = load(virus, cutoff=cutoff)
     if virus == 'h1':
         embed_fname = 'target/flu/embedding/bepler_ssa_h1.txt'
     elif virus == 'h3':
@@ -329,14 +348,15 @@ def escape_bepler(virus, vocabulary):
     for i in range(len(anchor)):
         if virus == 'bg505' and (i < 29 or i > 698):
             continue
-        if virus == 'cov2rbd' and (i < 318 or i > 540):
+        if virus == 'cov2rbd' and (i < 330 or i > 530):
             continue
         for word in vocabulary:
             if anchor[i] == word:
                 continue
             mut_seq = anchor[:i] + word + anchor[i + 1:]
-            if mut_seq in seqs_escape and \
-               (sum([ m['significant'] for m in seqs_escape[mut_seq] ]) > 0):
+            if mut_seq not in seqs_escape:
+                continue
+            if (sum([ m['significant'] for m in seqs_escape[mut_seq] ]) > 0):
                 escape_idx.append(len(changes))
             changes.append(mut2change[mut_seq])
     changes = np.array(changes)
@@ -349,23 +369,20 @@ if __name__ == '__main__':
     vocabulary = [
         'A', 'R', 'N', 'D', 'C', 'Q', 'E', 'G', 'H',
         'I', 'L', 'K', 'M', 'F', 'P', 'S', 'T', 'W',
-        'Y', 'V', 'U',
+        'Y', 'V',
     ]
 
     if args.method == 'bepler':
-        escape_bepler(args.virus, vocabulary)
-
-    elif args.method == 'energy':
-        escape_energy(args.virus, vocabulary)
+        escape_bepler(args.virus, vocabulary, cutoff=args.cutoff)
 
     elif args.method == 'evcouplings':
-        escape_evcouplings(args.virus, vocabulary)
+        escape_evcouplings(args.virus, vocabulary, cutoff=args.cutoff)
 
     elif args.method == 'freq':
-        escape_freq(args.virus, vocabulary)
+        escape_freq(args.virus, vocabulary, cutoff=args.cutoff)
 
     elif args.method == 'tape':
-        escape_tape(args.virus, vocabulary)
+        escape_tape(args.virus, vocabulary, cutoff=args.cutoff)
 
     elif args.method == 'unirep':
-        escape_tape(args.virus, vocabulary, 'unirep')
+        escape_tape(args.virus, vocabulary, 'unirep', cutoff=args.cutoff)

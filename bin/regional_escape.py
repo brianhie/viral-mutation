@@ -4,19 +4,19 @@ from intervaltree import IntervalTree
 
 def load(virus):
     if virus == 'h1':
-        escape_fname = ('target/flu/semantics/cache/'
+        escape_fname = ('results/flu/semantics/'
                         'analyze_semantics_flu_h1_bilstm_512.txt')
         region_fname = 'data/influenza/h1_regions.txt'
     elif virus == 'h3':
-        escape_fname = ('target/flu/semantics/cache/'
+        escape_fname = ('results/flu/semantics/'
                         'analyze_semantics_flu_h3_bilstm_512.txt')
         region_fname = 'data/influenza/h3_regions.txt'
     elif virus == 'hiv':
-        escape_fname = ('target/hiv/semantics/cache/'
+        escape_fname = ('results/hiv/semantics/'
                         'analyze_semantics_hiv_bilstm_512.txt')
         region_fname = 'data/hiv/bg505_regions.txt'
     elif virus == 'sarscov2':
-        escape_fname = ('target/cov/semantics/cache/'
+        escape_fname = ('results/cov/semantics/'
                         'analyze_semantics_cov_bilstm_512.txt')
         region_fname = 'data/cov/sarscov2_regions.txt'
     else:
@@ -48,6 +48,8 @@ def regional_escape(virus, beta=1., n_permutations=100000):
     with open(escape_fname) as f:
         columns = f.readline().rstrip().split()
         for line in f:
+            if line.rstrip().split()[2] in { 'U', 'B', 'J', 'X', 'Z' }:
+                continue
             data.append(line.rstrip().split('\t'))
     df_all = pd.DataFrame(data, columns=columns)
     df_all['pos'] = pd.to_numeric(df_all['pos'])

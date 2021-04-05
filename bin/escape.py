@@ -38,12 +38,12 @@ def load_doud2018(survival_cutoff=0.05):
                 seqs_escape[escaped].append({
                     'frac_survived': frac_survived,
                     'antibody': antibody,
-                    'significant': frac_survived > survival_cutoff,
+                    'significant': frac_survived >= survival_cutoff,
                 })
 
     return seq, seqs_escape
 
-def load_lee2019():
+def load_lee2019(survival_cutoff=None):
     fname = 'data/influenza/escape_lee2019/Perth2009_H3_HA.fa'
     for record in SeqIO.parse(fname, 'fasta'):
         seq = record.seq
@@ -55,7 +55,13 @@ def load_lee2019():
         f.readline() # Consume header.
         for line in f:
             fields = line.rstrip().split(',')
-            significant = fields[14] == 'True'
+            if survival_cutoff is None:
+                significant = fields[14] == 'True'
+            else:
+                if fields[7].strip():
+                    significant = float(fields[7]) >= survival_cutoff
+                else:
+                    significant = False
             pos = int(fields[13])
             assert(seq[pos] == fields[5])
             escaped = seq[:pos] + fields[6] + seq[pos + 1:]
@@ -116,7 +122,7 @@ def load_dingens2019(survival_cutoff=0.11):
                     'pos': pos,
                     'frac_survived': frac_survived,
                     'antibody': antibody,
-                    'significant': frac_survived > survival_cutoff,
+                    'significant': frac_survived >= survival_cutoff,
                 })
 
     return seq, seqs_escape
@@ -124,32 +130,37 @@ def load_dingens2019(survival_cutoff=0.11):
 def load_baum2020():
     seq = SeqIO.read('data/cov/cov2_spike_wt.fasta', 'fasta').seq
 
-    muts = [
+    muts = set([
         'K417E', 'K444Q', 'V445A', 'N450D', 'Y453F', 'L455F',
         'E484K', 'G485D', 'F486V', 'F490L', 'F490S', 'Q493K',
         'H655Y', 'R682Q', 'R685S', 'V687G', 'G769E', 'Q779K',
         'V1128A',
+    ])
+
+    AAs = [
+        'A', 'R', 'N', 'D', 'C', 'Q', 'E', 'G', 'H',
+        'I', 'L', 'K', 'M', 'F', 'P', 'S', 'T', 'W',
+        'Y', 'V',
     ]
 
     seqs_escape = {}
-    for mut in muts:
-        aa_orig = mut[0]
-        aa_mut = mut[-1]
-        pos = int(mut[1:-1]) - 1
-        assert(seq[pos] == aa_orig)
-        escaped = seq[:pos] + aa_mut + seq[pos + 1:]
-        assert(len(seq) == len(escaped))
-        if escaped not in seqs_escape:
-            seqs_escape[escaped] = []
-        seqs_escape[escaped].append({
-            'mutation': mut,
-            'significant': True,
-        })
+    for idx in range(len(seq)):
+        for aa in AAs:
+            if aa == seq[idx]:
+                continue
+            mut_seq = seq[:idx] + aa + seq[idx+1:]
+            mut_str = '{}{}{}'.format(seq[idx], idx + 1, aa)
+            if mut_seq not in seqs_escape:
+                seqs_escape[mut_seq] = []
+            seqs_escape[mut_seq].append({
+                'mutation': mut_str,
+                'significant': mut_str in muts,
+            })
 
     return seq, seqs_escape
 
 def load_greaney2020(survival_cutoff=0.3,
-                     binding_cutoff=-0.4, expr_cutoff=-0.4):
+                     binding_cutoff=-2.35, expr_cutoff=-1.5):
     seq = SeqIO.read('data/cov/cov2_spike_wt.fasta', 'fasta').seq
 
     sig_sites = set()
@@ -195,10 +206,10 @@ def load_greaney2020(survival_cutoff=0.3,
             if escaped not in seqs_escape:
                 seqs_escape[escaped] = []
             significant = (
-                escape_frac > survival_cutoff and
-                pos in sig_sites and
-                binding[(pos, aa_orig, aa_mut)][0] > binding_cutoff and
-                binding[(pos, aa_orig, aa_mut)][1] > expr_cutoff
+                escape_frac >= survival_cutoff and
+                # Statements below should always be true with defaults.
+                binding[(pos, aa_orig, aa_mut)][0] >= binding_cutoff and
+                binding[(pos, aa_orig, aa_mut)][1] >= expr_cutoff
             )
             seqs_escape[escaped].append({
                 'pos': pos,
