@@ -295,7 +295,7 @@ def escape_tape(virus, vocabulary, pretrained='transformer', cutoff=None):
             changes.append(mut2change[mut_seq])
     changes = np.array(changes)
 
-    plot_result(-changes, escape_idx, virus, fname_prefix,
+    plot_result(changes, escape_idx, virus, fname_prefix,
                 legend_name='TAPE ({})'.format(fname_prefix))
 
 
@@ -361,7 +361,7 @@ def escape_bepler(virus, vocabulary, cutoff=None):
             changes.append(mut2change[mut_seq])
     changes = np.array(changes)
 
-    plot_result(-changes, escape_idx, virus, 'bepler', legend_name='Bepler')
+    plot_result(changes, escape_idx, virus, 'bepler', legend_name='Bepler')
 
 if __name__ == '__main__':
     args = parse_args()
