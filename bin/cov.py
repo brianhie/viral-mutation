@@ -304,7 +304,7 @@ def analyze_new_mutations(args, model, seqs, vocabulary):
         'F140del', 'E484K', 'Y248|insKTRNKSTSRRE|L249'
     ]
 
-    names = [ 'B.1.1.7', 'V501.V2', 'PT188-EM' ]
+    names = [ 'B.1.1.7', 'B.1.351', 'PT188-EM' ]
     mutations_list = [ uk_mutations, sa_mutations, andreano_mutations ]
 
     wt_seq = str(SeqIO.read('data/cov/cov2_spike_wt.fasta', 'fasta').seq)
@@ -404,19 +404,19 @@ def analyze_new_mutations(args, model, seqs, vocabulary):
     for name, change in zip(names, mut_changes):
         ax.annotate(name, (0.01, change))
     ax.get_xaxis().set_visible(False)
-    plt.ylabel('Antigenic change')
+    plt.ylabel('Semantic change')
     plt.tight_layout()
     plt.savefig('figures/cov_new_mut.png', dpi=500)
     plt.close()
 
-    plt.figure(figsize=(3.5, 8))
+    plt.figure(figsize=(4, 8))
     plt.scatter(null_grammar, null_changes, color='#aaaaaa')
     plt.scatter(mut_gramms, mut_changes, color='#800000')
     ax = plt.gca()
     for name, gramm, change in zip(names, mut_gramms, mut_changes):
         ax.annotate(name, (gramm + 0.1, change))
     plt.xlabel('Fitness')
-    plt.ylabel('Antigenic change')
+    plt.ylabel('Semantic change')
     plt.tight_layout()
     plt.savefig('figures/cov_new_mut_cscs.png', dpi=500)
     plt.close()
