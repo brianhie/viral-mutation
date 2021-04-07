@@ -333,7 +333,7 @@ def analyze_new_mutations(args, model, seqs, vocabulary):
     ])
 
     null_changes = np.array([
-        np.linalg.norm(seqs[seq][0]['embedding'].mean(0) - wt_embedding.mean(0))
+        abs(seqs[seq][0]['embedding'].mean(0) - wt_embedding.mean(0)).sum()
         for seq in sorted_seqs
     ])
     null_grammar = np.array([
@@ -350,7 +350,7 @@ def analyze_new_mutations(args, model, seqs, vocabulary):
         mut_embedding = embed_seqs(
             args, model, { mut_seq: [ {} ] }, vocabulary, verbose=False,
         )[mut_seq][0]['embedding']
-        mut_change = np.linalg.norm(mut_embedding.mean(0) - wt_embedding.mean(0))
+        mut_change = abs(mut_embedding.mean(0) - wt_embedding.mean(0)).sum()
         mut_changes.append(mut_change)
 
         mut_gramm = grammaticality_change(word_pos_prob, wt_seq, mutations,
@@ -387,7 +387,7 @@ def analyze_new_mutations(args, model, seqs, vocabulary):
             embedding = embed_seqs(
                 args, model, { mut_seq: [ {} ] }, vocabulary, verbose=False,
             )[mut_seq][0]['embedding']
-            change = np.linalg.norm(embedding.mean(0) - wt_embedding.mean(0))
+            change = abs(embedding.mean(0) - wt_embedding.mean(0)).sum()
 
             mut_gramm = grammaticality_change(word_pos_prob, wt_seq, [ mutation ],
                                               args, vocabulary, model)
