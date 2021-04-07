@@ -48,7 +48,7 @@ def cached_escape(cache_fname, beta,
         if cutoff is None:
             wt_seq, seqs_escape = load_greaney2020()
         elif expr_cutoff is not None:
-            wt_seq, seqs_escape = load_greaney2020(binding_cutoff=expr_cutoff)
+            wt_seq, seqs_escape = load_greaney2020(expr_cutoff=expr_cutoff)
         else:
             wt_seq, seqs_escape = load_greaney2020(survival_cutoff=cutoff)
     else:
