@@ -1,6 +1,7 @@
 from utils import *
 
 import tensorflow as tf
+import tensorflow.keras.backend as K
 from tensorflow.keras import Input
 from tensorflow.keras.callbacks import ModelCheckpoint
 from tensorflow.keras.layers import (
@@ -62,21 +63,17 @@ class LanguageModel(object):
         X = self.split_and_pad(X_cat, lengths, self.seq_len_,
                                self.vocab_size_, self.verbose_)[0]
         y_pred = self.model_.predict(X, batch_size=2500)
+        assert len(lengths) == 1
+        y_pred = y_pred[0, :lengths[0]]
         return y_pred
 
     def transform(self, X_cat, lengths, embed_fname=None):
-        X = self.split_and_pad(
+        X, y = self.split_and_pad(
             X_cat, lengths,
             self.seq_len_, self.vocab_size_, self.verbose_,
-        )[0]
+        )
 
-        # For now, each character in each sequence becomes a sample.
-        n_samples = sum(lengths)
-        if type(X) == list:
-            for X_i in X:
-                assert(X_i.shape[0] == n_samples)
-        else:
-            assert(X.shape[0] == n_samples)
+        n_samples = len(y)
 
         # Embed using the output of a hidden layer.
         hidden = tf.keras.backend.function(
@@ -104,11 +101,7 @@ class LanguageModel(object):
         if self.verbose_:
             tprint('Done embedding.')
 
-        X_embed = np.array([
-            X_embed_cat[start:end]
-            for start, end in
-            iterate_lengths(lengths, self.seq_len_)
-        ])
+        X_embed = np.array([S[:L] for S, L in zip(X_embed_cat, lengths)])
 
         return X_embed
 
@@ -321,24 +314,24 @@ class BiLSTMLanguageModel(LanguageModel):
         #policy = mixed_precision.Policy('mixed_float16')
         #mixed_precision.set_policy(policy)
 
-        input_pre = Input(shape=(seq_len - 1,))
-        input_post = Input(shape=(seq_len - 1,))
+        input_pre = Input(shape=(seq_len,))
+        input_post = Input(shape=(seq_len,))
 
         embed = Embedding(vocab_size + 1, embedding_dim,
-                          input_length=seq_len - 1)
+                          input_length=seq_len)
         x_pre = embed(input_pre)
         x_post = embed(input_post)
 
-        for _ in range(n_hidden - 1):
+        for _ in range(n_hidden):
             lstm = LSTM(hidden_dim, return_sequences=True)
             x_pre = lstm(x_pre)
             x_post = lstm(x_post)
-        lstm = LSTM(hidden_dim)
-        x_pre = lstm(x_pre)
-        x_post = lstm(x_post)
+        x_post = K.reverse(x_post, 1)
 
         x = concatenate([ x_pre, x_post ],
-                        name='embed_layer')
+                        axis = -1,
+                        name='embed_layer',
+                        )
 
         #x = Dense(dff, activation='relu')(x)
         x = Dense(vocab_size + 1)(x)
@@ -371,31 +364,13 @@ class BiLSTMLanguageModel(LanguageModel):
             X_cat[start:end].flatten()
             for start, end in iterate_lengths(lengths, seq_len)
         ]
-        X_pre = [
-            X_seq[:i] for X_seq in X_seqs for i in range(len(X_seq))
-        ]
-        X_post = [
-            X_seq[i + 1:] for X_seq in X_seqs for i in range(len(X_seq))
-        ]
-        y = np.array([
-            X_seq[i] for X_seq in X_seqs for i in range(len(X_seq))
-        ])
+        X_seqs = pad_sequences(X_seqs, maxlen=seq_len,
+                 dtype='int32', padding='post', truncating='post', value=0)
+        B = X_seqs.shape[0]
+        X_pre = np.concatenate((np.zeros((B, 1)), X_seqs[:,:-1]), axis=-1)
+        X_post = np.concatenate((np.zeros((B, 1)), np.flip(X_seqs, 1)[:,:-1]), axis=-1)
+        y = X_seqs
 
-        if verbose > 1:
-            tprint('Padding {} splitted...'.format(len(X_pre)))
-        X_pre = pad_sequences(
-            X_pre, maxlen=seq_len - 1,
-            dtype='int32', padding='pre', truncating='pre', value=0
-        )
-        if verbose > 1:
-            tprint('Padding {} splitted again...'.format(len(X_pre)))
-        X_post = pad_sequences(
-            X_post, maxlen=seq_len - 1,
-            dtype='int32', padding='post', truncating='post', value=0
-        )
-        if verbose > 1:
-            tprint('Flipping...')
-        X_post = np.flip(X_post, 1)
         X = [ X_pre, X_post ]
 
         if verbose > 1:
