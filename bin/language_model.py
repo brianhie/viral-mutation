@@ -62,17 +62,21 @@ class LanguageModel(object):
         X = self.split_and_pad(X_cat, lengths, self.seq_len_,
                                self.vocab_size_, self.verbose_)[0]
         y_pred = self.model_.predict(X, batch_size=2500)
-        assert len(lengths) == 1
-        y_pred = y_pred[0, :lengths[0]]
         return y_pred
 
     def transform(self, X_cat, lengths, embed_fname=None):
-        X, y = self.split_and_pad(
+        X = self.split_and_pad(
             X_cat, lengths,
             self.seq_len_, self.vocab_size_, self.verbose_,
-        )
+        )[0]
 
-        n_samples = len(y)
+        # For now, each character in each sequence becomes a sample.
+        n_samples = sum(lengths)
+        if type(X) == list:
+            for X_i in X:
+                assert(X_i.shape[0] == n_samples)
+        else:
+            assert(X.shape[0] == n_samples)
 
         # Embed using the output of a hidden layer.
         hidden = tf.keras.backend.function(
@@ -100,7 +104,11 @@ class LanguageModel(object):
         if self.verbose_:
             tprint('Done embedding.')
 
-        X_embed = np.array([S[:L] for S, L in zip(X_embed_cat, lengths)])
+        X_embed = np.array([
+            X_embed_cat[start:end]
+            for start, end in
+            iterate_lengths(lengths, self.seq_len_)
+        ])
 
         return X_embed
 
