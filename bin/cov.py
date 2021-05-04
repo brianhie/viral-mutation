@@ -12,9 +12,9 @@ def parse_args():
                         help='Model namespace')
     parser.add_argument('--dim', type=int, default=512,
                         help='Embedding dimension')
-    parser.add_argument('--batch-size', type=int, default=500,
+    parser.add_argument('--batch-size', type=int, default=250,
                         help='Training minibatch size')
-    parser.add_argument('--n-epochs', type=int, default=11,
+    parser.add_argument('--n-epochs', type=int, default=20,
                         help='Number of training epochs')
     parser.add_argument('--seed', type=int, default=1,
                         help='Random seed')
@@ -171,7 +171,7 @@ def setup(args):
     vocab_size = len(AAs) + 2
 
     model = get_model(args, seq_len, vocab_size,
-                      inference_batch_size=1200)
+                      inference_batch_size=600)
 
     return model, seqs
 
