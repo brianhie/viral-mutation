@@ -100,7 +100,7 @@ def cached_escape(cache_fname, beta,
                                           np.log10(escape_change))
 
     if plot:
-        mkdir_p('figures/')
+        mkdir_p('figures')
 
         plt.figure()
         plt.scatter(log_prob, log_change, c=acquisition[pos_change_idx],
