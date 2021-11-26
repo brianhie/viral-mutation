@@ -9,7 +9,7 @@ def parse_args():
     parser.add_argument('baseline_fasta', help='Baseline sequence')
     parser.add_argument('target_fasta',
                         help='Sequences on which to compute statistics')
-    parser.add_argument('--checkpoint', type=str,
+    parser.add_argument('--checkpoint', type=str, default='models/cov.hdf5',
                         help='Model checkpoint')
     parser.add_argument('--output', type=str, default=None,
                         help='Results output filename')
