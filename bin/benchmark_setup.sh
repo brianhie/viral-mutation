@@ -118,7 +118,7 @@ tape-embed unirep \
 ## Fitness calculations ##
 ##########################
 
-declare -a methods=("energy" "evcouplings" "freq")
+declare -a methods=("evcouplings" "freq")
 declare -a viruses=("h1" "bf520" "bg505")
 
 for method in ${methods[@]}

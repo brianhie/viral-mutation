@@ -10,12 +10,13 @@ def plot_reinfection(namespace='reinfection'):
         n_hprob_lchange = 0
         n_lprob_hchange = 0
         n_lprob_lchange = 0
-        probs, changes = [], []
+        probs, changes, higher = [], [], []
         for line in f:
             fields = line.rstrip().split()
             prob, change = float(fields[2]), float(fields[3])
             if prob > base_prob and change > base_change:
                 n_hprob_hchange += 1
+                higher.append(fields[0])
             elif prob > base_prob and change <= base_change:
                 n_hprob_lchange += 1
             elif prob <= base_prob and change > base_change:
@@ -33,6 +34,9 @@ def plot_reinfection(namespace='reinfection'):
         p = ss.fisher_exact([[ n_hprob_hchange, n_hprob_lchange ],
                              [ n_lprob_hchange, n_lprob_lchange ]])[1]
         print('Fisher\'s exact P = {}'.format(p))
+
+        print('Higher:')
+        print('\t' + '\n\t'.join(higher))
 
         plt.figure(figsize=(4, 4))
         plt.scatter(probs, changes, c='#aaaaaa', s=10)

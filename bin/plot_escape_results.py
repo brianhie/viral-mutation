@@ -38,7 +38,7 @@ def plot_escape_benchmark(df):
         plt.figure()
         sns.barplot(data=df_subset, x='model', y='value',
                     order=model_order, palette=colors)
-        plt.ylim([ 0.45, 0.9 ])
+        plt.ylim([ 0.4, 0.9 ])
         plt.axhline(y=0.5, color='gray', linestyle='--')
         plt.savefig('figures/escape_barplot_benchmark_{}.svg'
                     .format(strain))

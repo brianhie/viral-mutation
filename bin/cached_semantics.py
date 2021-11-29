@@ -19,17 +19,66 @@ def compute_p(true_val, n_interest, n_total, n_permutations=10000):
     null_distribution = np.array(null_distribution)
     return sum(null_distribution >= true_val) / n_permutations
 
-def cached_escape(cache_fname, beta, plot=True, namespace='semantics'):
+def cached_escape(cache_fname, beta,
+                  cutoff=None, expr_cutoff=None, bind_cutoff=None,
+                  plot=True, namespace='semantics'):
+    if 'flu_h1' in cache_fname:
+        from escape import load_doud2018
+        if cutoff is None:
+            wt_seq, seqs_escape = load_doud2018()
+        else:
+            wt_seq, seqs_escape = load_doud2018(survival_cutoff=cutoff)
+    elif 'flu_h3' in cache_fname:
+        from escape import load_lee2019
+        if cutoff is None:
+            wt_seq, seqs_escape = load_lee2019()
+        else:
+            wt_seq, seqs_escape = load_lee2019(survival_cutoff=cutoff)
+    elif 'hiv' in cache_fname:
+        from escape import load_dingens2019
+        if cutoff is None:
+            wt_seq, seqs_escape = load_dingens2019()
+        else:
+            wt_seq, seqs_escape = load_dingens2019(survival_cutoff=cutoff)
+    elif '_cov_' in cache_fname:
+        from escape import load_baum2020
+        wt_seq, seqs_escape = load_baum2020()
+    elif 'cov2rbd' in cache_fname:
+        from escape import load_greaney2020
+        if cutoff is None:
+            wt_seq, seqs_escape = load_greaney2020()
+        elif expr_cutoff is not None:
+            wt_seq, seqs_escape = load_greaney2020(expr_cutoff=expr_cutoff)
+        else:
+            wt_seq, seqs_escape = load_greaney2020(survival_cutoff=cutoff)
+    else:
+        raise ValueError('invalid option {}'.format(cache_fname))
+
     prob, change, escape_idx, viable_idx = [], [], [], []
     with open(cache_fname) as f:
         f.readline()
         for line in f:
             fields = line.rstrip().split('\t')
             pos = int(fields[0])
+            if 'rbd' in cache_fname:
+                if pos < 330 or pos > 530:
+                    continue
+            if fields[2] in { 'U', 'B', 'J', 'X', 'Z' }:
+                continue
+            aa_wt = fields[1]
+            aa_mut = fields[2]
+            assert(wt_seq[pos] == aa_wt)
+            mut_seq = wt_seq[:pos] + aa_mut + wt_seq[pos+1:]
+            if mut_seq not in seqs_escape:
+                continue
             prob.append(float(fields[3]))
             change.append(float(fields[4]))
             viable_idx.append(fields[5] == 'True')
-            escape_idx.append(fields[6] == 'True')
+            escape_idx.append(
+                (mut_seq in seqs_escape) and
+                (sum([ m['significant']
+                       for m in seqs_escape[mut_seq] ]) > 0)
+            )
 
     prob, orig_prob = np.array(prob), np.array(prob)
     change, orig_change  = np.array(change), np.array(change)
@@ -51,6 +100,8 @@ def cached_escape(cache_fname, beta, plot=True, namespace='semantics'):
                                           np.log10(escape_change))
 
     if plot:
+        mkdir_p('figures')
+
         plt.figure()
         plt.scatter(log_prob, log_change, c=acquisition[pos_change_idx],
                     cmap='viridis', alpha=0.3)
@@ -157,4 +208,10 @@ def cached_escape(cache_fname, beta, plot=True, namespace='semantics'):
                                   alternative='two-sided')[1]))
 
 if __name__ == '__main__':
-    cached_escape(sys.argv[1], 1.)
+    cutoff, expr_cutoff, bind_cutoff = None, None, None
+    if len(sys.argv) > 2:
+        cutoff = float(sys.argv[2])
+    if len(sys.argv) > 3:
+        expr_cutoff = float(sys.argv[3])
+
+    cached_escape(sys.argv[1], 1., cutoff, expr_cutoff)

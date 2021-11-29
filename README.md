@@ -107,6 +107,14 @@ python bin/cov.py bilstm --train --test \
     > cov_train.log 2>&1
 ```
 
+#### Benchmarking experiments
+
+Performing a sweep of escape cutoffs to compare the AUC of CSCS to that of baseline methods can be done with the command
+```bash
+bash bin/benchmark_escape.sh
+```
+
 ### Questions
 
-For questions about the pipeline and code, contact brianhie@mit.edu. We will do our best to provide support, address any issues, and keep improving this software. And do not hesitate to submit a pull request and contribute!
+For questions, please use the [GitHub Discussions](https://github.com/brianhie/viral-mutation/discussions) forum. For bugs or other problems, please file an [issue](https://github.com/brianhie/viral-mutation/issues).
+

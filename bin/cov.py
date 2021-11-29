@@ -12,9 +12,9 @@ def parse_args():
                         help='Model namespace')
     parser.add_argument('--dim', type=int, default=512,
                         help='Embedding dimension')
-    parser.add_argument('--batch-size', type=int, default=500,
+    parser.add_argument('--batch-size', type=int, default=250,
                         help='Training minibatch size')
-    parser.add_argument('--n-epochs', type=int, default=11,
+    parser.add_argument('--n-epochs', type=int, default=20,
                         help='Number of training epochs')
     parser.add_argument('--seed', type=int, default=1,
                         help='Random seed')
@@ -173,7 +173,7 @@ def setup(args):
     vocab_size = len(AAs) + 2
 
     model = get_model(args, seq_len, vocab_size,
-                      inference_batch_size=1200)
+                      inference_batch_size=600)
 
     return model, seqs
 
@@ -465,12 +465,12 @@ if __name__ == '__main__':
         tprint('Baum et al. 2020...')
         seq_to_mutate, seqs_escape = load_baum2020()
         analyze_semantics(args, model, vocabulary,
-                          seq_to_mutate, seqs_escape, comb_batch=10000,
+                          seq_to_mutate, seqs_escape, comb_batch=5000,
                           prob_cutoff=0, beta=1., plot_acquisition=True,)
         tprint('Greaney et al. 2020...')
         seq_to_mutate, seqs_escape = load_greaney2020()
         analyze_semantics(args, model, vocabulary,
-                          seq_to_mutate, seqs_escape, comb_batch=10000,
+                          seq_to_mutate, seqs_escape, comb_batch=5000,
                           min_pos=318, max_pos=540, # Restrict to RBD.
                           prob_cutoff=0, beta=1., plot_acquisition=True,
                           plot_namespace='cov2rbd')
