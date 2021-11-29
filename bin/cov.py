@@ -34,6 +34,8 @@ def parse_args():
                         help='Analyze combinatorial fitness')
     parser.add_argument('--reinfection', action='store_true',
                         help='Analyze reinfection cases')
+    parser.add_argument('--newmut', action='store_true',
+                        help='Analyze reinfection cases')
     args = parser.parse_args()
     return args
 
@@ -231,6 +233,194 @@ def analyze_embedding(args, model, seqs, vocabulary):
     plot_umap(adata_cov2, [ 'host', 'group', 'country' ],
               namespace='cov7')
 
+def make_mutant(wt_seq, mutations):
+    indiv_muts, mut_seq = [], wt_seq[:]
+    for mutation in mutations:
+        aa_orig = mutation[0]
+        if 'del' in mutation:
+            aa_pos = int(mutation[1:-3]) - 1
+            aa_mut = '-'
+        elif '|' in mutation and 'ins' in mutation:
+            aa_pos = int(mutation.split('|')[0][1:]) - 1
+            aa_mut = mutation.split('|')[1][3:]
+        else:
+            aa_pos = int(mutation[1:-1]) - 1
+            aa_mut = mutation[-1]
+        assert(mut_seq[aa_pos] == aa_orig)
+        mut_seq = mut_seq[:aa_pos] + aa_mut + mut_seq[aa_pos + 1:]
+    mut_seq = mut_seq.replace('-', '')
+    return mut_seq
+
+def grammaticality_change(word_pos_prob, seq, mutations, args, vocabulary, model,
+                          verbose=False,):
+    if len(mutations) == 0:
+        return 0
+
+    mut_probs = []
+    for mutation in mutations:
+        if 'del' in mutation or 'ins' in mutation:
+            continue
+        aa_orig = mutation[0]
+        aa_pos = int(mutation[1:-1]) - 1
+        aa_mut = mutation[-1]
+        if (seq[aa_pos] != aa_orig):
+            print(mutation)
+        assert(seq[aa_pos] == aa_orig)
+        mut_probs.append(word_pos_prob[(aa_mut, aa_pos)])
+
+    return np.mean(np.log10(mut_probs))
+
+def get_mutations(seq1, seq2):
+    mutations = []
+    from Bio import pairwise2
+    alignment = pairwise2.align.globalms(
+        seq1, seq2, 5, -4, -3, -.1, one_alignment_only=True,
+    )[0]
+    pos = 0
+    for ch1, ch2 in zip(alignment[0], alignment[1]):
+        if ch1 != ch2 and ch1 != '-' and ch2 != '-':
+            mutations.append('{}{}{}'.format(ch1, pos + 1, ch2))
+        if ch1 != '-':
+            pos += 1
+    return mutations
+
+def get_escape_potential(gramm, change, null_gramm, null_change):
+    assert(len(null_gramm) == len(null_change))
+    count = 0
+    for ng, nc in zip(null_gramm, null_change):
+        if ng < gramm or nc < change:
+            count += 1
+    return count / len(null_gramm), len(null_gramm) - count
+
+def analyze_new_mutations(args, model, seqs, vocabulary):
+    uk_mutations = [
+        'H69del', 'V70del', 'Y145del', 'N501Y', 'A570D',
+        'P681H', 'T716I', 'S982A',  'D1118H'
+    ]
+    sa_mutations = [
+        'D80A', 'D215G', 'K417N', 'E484K', 'N501Y', 'A701V'
+    ]
+    andreano_mutations = [
+        'F140del', 'E484K', 'Y248|insKTRNKSTSRRE|L249'
+    ]
+
+    names = [ 'B.1.1.7', 'B.1.351', 'PT188-EM' ]
+    mutations_list = [ uk_mutations, sa_mutations, andreano_mutations ]
+
+    wt_seq = str(SeqIO.read('data/cov/cov2_spike_wt.fasta', 'fasta').seq)
+
+    seqs = embed_seqs(
+        args, model, seqs, vocabulary, use_cache=True, namespace='cov2_null'
+    )
+    wt_embedding = seqs[wt_seq][0]['embedding']
+
+    y_pred = predict_sequence_prob(
+        args, wt_seq, vocabulary, model, verbose=False
+    )
+
+    word_pos_prob = {}
+    for pos in range(len(wt_seq)):
+        for word in vocabulary:
+            word_idx = vocabulary[word]
+            prob = y_pred[pos + 1, word_idx]
+            word_pos_prob[(word, pos)] = prob
+
+    sorted_seqs = sorted([
+        seq for seq in seqs
+        if ((seqs[seq][0]['strain'] == 'SARS-CoV-2' or
+             'hCoV-19' in seqs[seq][0]['strain']) and
+            seq != wt_seq and seq.startswith('M') and seq.endswith('HYT'))
+    ])
+
+    null_changes = np.array([
+        abs(seqs[seq][0]['embedding'].mean(0) - wt_embedding.mean(0)).sum()
+        for seq in sorted_seqs
+    ])
+    null_grammar = np.array([
+        grammaticality_change(word_pos_prob, wt_seq, get_mutations(wt_seq, seq),
+                              args, vocabulary, model)
+        for seq in sorted_seqs
+    ])
+    tprint('Background set of {} sequences'.format(len(null_changes)))
+
+    mut_changes, mut_gramms = [], []
+    for name, mutations in zip(names, mutations_list):
+
+        mut_seq = make_mutant(wt_seq, mutations)
+        mut_embedding = embed_seqs(
+            args, model, { mut_seq: [ {} ] }, vocabulary, verbose=False,
+        )[mut_seq][0]['embedding']
+        mut_change = abs(mut_embedding.mean(0) - wt_embedding.mean(0)).sum()
+        mut_changes.append(mut_change)
+
+        mut_gramm = grammaticality_change(word_pos_prob, wt_seq, mutations,
+                                          args, vocabulary, model)
+        mut_gramms.append(mut_gramm)
+
+        print('{}: Grammar percentile = {}%'.format(
+            name, ss.percentileofscore(null_grammar, mut_gramm)
+        ))
+        print('{}: Change percentile = {}%'.format(
+            name, ss.percentileofscore(null_changes, mut_change)
+        ))
+        print('{}: Combined percentile = {}, N = {}'.format(
+            name, *get_escape_potential(mut_gramm, mut_change,
+                                        null_grammar, null_changes)
+        ))
+
+        for idx in np.argwhere(null_changes > mut_change).ravel():
+            print('\tlen: {},\tstart char: {}'.format(len(sorted_seqs[idx]),
+                                                      sorted_seqs[idx][0]))
+            if name == 'andreano':
+                print('\tHigher change mutations:')
+                from Bio import pairwise2
+                alignment = pairwise2.align.globalms(
+                    wt_seq, sorted_seqs[idx], 5, -4, -3, -.1,
+                    one_alignment_only=True,
+                )[0]
+                for idx, (ch1, ch2) in enumerate(zip(alignment[0], alignment[1])):
+                    if ch1 != ch2:
+                        print('\t\t{}{}{}'.format(ch1, idx + 1, ch2))
+
+        for mutation in mutations:
+            mut_seq = make_mutant(wt_seq, [ mutation ])
+            embedding = embed_seqs(
+                args, model, { mut_seq: [ {} ] }, vocabulary, verbose=False,
+            )[mut_seq][0]['embedding']
+            change = abs(embedding.mean(0) - wt_embedding.mean(0)).sum()
+
+            mut_gramm = grammaticality_change(word_pos_prob, wt_seq, [ mutation ],
+                                              args, vocabulary, model)
+
+            print('\tMutation {}: change = {}, percentile = {}%'.format(
+                mutation, change,
+                ss.percentileofscore(null_changes, change)
+            ))
+
+    plt.figure(figsize=(4, 8))
+    ax = sns.violinplot(data=null_changes, inner=None, color='white')
+    ax = sns.stripplot(data=null_changes, color='#aaaaaa')
+    ax.scatter([ 0 ] * len(mut_changes), mut_changes, color='#800000')
+    for name, change in zip(names, mut_changes):
+        ax.annotate(name, (0.01, change))
+    ax.get_xaxis().set_visible(False)
+    plt.ylabel('Semantic change')
+    plt.tight_layout()
+    plt.savefig('figures/cov_new_mut.png', dpi=500)
+    plt.close()
+
+    plt.figure(figsize=(4, 8))
+    plt.scatter(null_grammar, null_changes, color='#aaaaaa')
+    plt.scatter(mut_gramms, mut_changes, color='#800000')
+    ax = plt.gca()
+    for name, gramm, change in zip(names, mut_gramms, mut_changes):
+        ax.annotate(name, (gramm + 0.1, change))
+    plt.xlabel('Fitness')
+    plt.ylabel('Semantic change')
+    plt.tight_layout()
+    plt.savefig('figures/cov_new_mut_cscs.png', dpi=500)
+    plt.close()
+
 if __name__ == '__main__':
     args = parse_args()
 
@@ -286,6 +476,10 @@ if __name__ == '__main__':
                           plot_namespace='cov2rbd')
 
     if args.combfit:
+        if args.checkpoint is None and not args.train:
+            raise ValueError('Model must be trained or loaded '
+                             'from checkpoint.')
+
         from combinatorial_fitness import load_starr2020
         tprint('Starr et al. 2020...')
         wt_seqs, seqs_fitness = load_starr2020()
@@ -296,6 +490,10 @@ if __name__ == '__main__':
                                  comb_batch=10000, prob_cutoff=0., beta=1.)
 
     if args.reinfection:
+        if args.checkpoint is None and not args.train:
+            raise ValueError('Model must be trained or loaded '
+                             'from checkpoint.')
+
         from reinfection import load_to2020, load_ratg13, load_sarscov1
         from plot_reinfection import plot_reinfection
 
@@ -317,3 +515,10 @@ if __name__ == '__main__':
         analyze_reinfection(args, model, seqs, vocabulary, wt_seq, mutants,
                             namespace='sarscov1')
         plot_reinfection(namespace='sarscov1')
+
+    if args.newmut:
+        if args.checkpoint is None and not args.train:
+            raise ValueError('Model must be trained or loaded '
+                             'from checkpoint.')
+
+        analyze_new_mutations(args, model, seqs, vocabulary)

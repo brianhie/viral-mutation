@@ -61,7 +61,11 @@ class LanguageModel(object):
     def predict(self, X_cat, lengths):
         X = self.split_and_pad(X_cat, lengths, self.seq_len_,
                                self.vocab_size_, self.verbose_)[0]
-        y_pred = self.model_.predict(X, batch_size=self.inference_batch_size_)
+
+        y_pred = self.model_.predict(
+            X, batch_size=self.inference_batch_size_
+        )
+
         return y_pred
 
     def transform(self, X_cat, lengths, embed_fname=None):
@@ -422,8 +426,8 @@ class AttentionLanguageModel(LanguageModel):
     ):
         super().__init__(seed=seed,)
 
-        policy = mixed_precision.Policy('mixed_float16')
-        mixed_precision.set_policy(policy)
+        #policy = mixed_precision.Policy('mixed_float16')
+        #mixed_precision.set_policy(policy)
 
         input_ = Input(shape=(seq_len - 1,))
 
