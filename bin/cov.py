@@ -14,7 +14,7 @@ def parse_args():
                         help='Embedding dimension')
     parser.add_argument('--batch-size', type=int, default=500,
                         help='Training minibatch size')
-    parser.add_argument('--n-epochs', type=int, default=20,
+    parser.add_argument('--n-epochs', type=int, default=11,
                         help='Number of training epochs')
     parser.add_argument('--seed', type=int, default=1,
                         help='Random seed')
@@ -165,7 +165,7 @@ def split_seqs(seqs, split_method='random'):
 def setup(args):
     fnames = [ 'data/cov/sars_cov2_seqs.fa',
                'data/cov/viprbrc_db.fasta',
-               'data/cov/spikeprot0129.fasta' ]
+               'data/cov/gisaid.fasta' ]
 
     seqs = process(fnames)
 
