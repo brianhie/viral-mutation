@@ -32,7 +32,7 @@ def get_mutations(seq1, seq2):
     mutations = []
     from Bio import pairwise2
     alignment = pairwise2.align.globalms(
-        seq1, seq2, 5, -4, -3, -.1, one_alignment_only=True,
+        seq1, seq2, 5, -5, -3, -.1, one_alignment_only=True,
     )[0]
     pos = 0
     for ch1, ch2 in zip(alignment[0], alignment[1]):
